@@ -1,4 +1,8 @@
 # GPUaccelOpen3D
-This repository uses CUDA to accelerate Point Cloud Operations. This is my final project for EE217: GPU Architecture and Parallel Programming at UC Riverside in Fall 2021
+
+This repository uses CUDA to accelerate Point Cloud Operations.
 
 ## References
+
+- [Point Cloud Library Documentation](http://www.open3d.org/docs/release/index.html)
+- [Numba Documentation](https://numba.readthedocs.io/en/stable/cuda/examples.html#matrix-multiplication)
