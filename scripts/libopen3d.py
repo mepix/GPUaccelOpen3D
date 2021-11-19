@@ -85,6 +85,15 @@ class WrapperOpen3d(object):
         # Output combined NumPy array
         return npa
 
+    def convertNumPyToPointCloud(self,arr):
+        """Converts a Nx9 NumPy array [X,Y,Z,R,G,B,NormX,NormY,NormZ] to Open3d"""
+        pcd = o3d.geometry.PointCloud()
+        pcd.points = o3d.utility.Vector3dVector(arr[:,[0,1,2]])
+        pcd.colors = o3d.utility.Vector3dVector(arr[:,[3,4,5]])
+        pcd.normals = o3d.utility.Vector3dVector(arr[:,[6,7,8]])
+        return pcd
+
+
 if __name__ == '__main__':
     try:
         print("Testing Open3D")
@@ -100,6 +109,11 @@ if __name__ == '__main__':
 
         # Get the NumPy Data (Pts,Colors,Normals)
         myNumPyArray = myOpen3d.getNumpyAll(verbose=True)
+
+        # Convert the NumPy Data back to Point Cloud
+        myOpen3d.pcd = myOpen3d.convertNumPyToPointCloud(myNumPyArray)
+        myOpen3d.visPointCloud()
+
 
     except:
         print("ERROR, EXCEPTION THROWN")
