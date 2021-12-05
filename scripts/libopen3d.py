@@ -5,7 +5,6 @@ import open3d as o3d
 import copy
 import matplotlib.pyplot as plt
 
-
 class WrapperOpen3d(object):
     """This lightweight wrapper on Open3D converts a .ply point cloud into a NumPy Array"""
 
@@ -59,25 +58,22 @@ class WrapperOpen3d(object):
             print("No Point Cloud Loaded, Cannot Get Colors")
             return None
 
-    def getClusterLabels(self):
+    def getClusterLabels(self,visualize=False):
         """Uses DBSCAN to cluster the point cloud and returns a NumPy label array"""
         if self.point_cloud_loaded:
             # Run the Clustering Algorithm
             with o3d.utility.VerbosityContextManager(o3d.utility.VerbosityLevel.Debug) as cm:
                 labels = np.array(self.pcd.cluster_dbscan(eps=0.02, min_points=10, print_progress=True))
 
-            max_label = labels.max()
-            pcd = copy.deepcopy(self.pcd)
-            print(f"point cloud has {max_label + 1} clusters")
-            colors = plt.get_cmap("tab20")(labels / (max_label if max_label > 0 else 1))
-            colors[labels < 0] = 0
-            pcd.colors = o3d.utility.Vector3dVector(colors[:, :3])
-            o3d.visualization.draw_geometries([pcd],
-                                              zoom=0.455,
-                                              front=[-0.4999, -0.1659, -0.8499],
-                                              lookat=[2.1813, 2.0619, 2.0999],
-                                              up=[0.1204, -0.9852, 0.1215])
-
+            # Display the Colored Point Cloud
+            if visualize:
+                max_label = labels.max()
+                pcd = copy.deepcopy(self.pcd)
+                print(f"point cloud has {max_label + 1} clusters")
+                colors = plt.get_cmap("tab20")(labels / (max_label if max_label > 0 else 1))
+                colors[labels < 0] = 0
+                pcd.colors = o3d.utility.Vector3dVector(colors[:, :3])
+                o3d.visualization.draw_geometries([pcd])
 
             return labels
         else:
@@ -101,14 +97,24 @@ class WrapperOpen3d(object):
         print("Let\'s draw a cubic using o3d.geometry.LineSet")
         points = [[0, 0, 0], [1, 0, 0], [0, 1, 0], [0, 0, 1]]
         lines = [[0, 1], [0, 2], [0, 3]]
-        colors = [[1, 0, 0] for i in range(len(lines))]
+        colors = [[1, 0, 0],[0,1,0],[0,0,1]]
         line_set = o3d.geometry.LineSet()
         line_set.points = o3d.utility.Vector3dVector(points)
         line_set.lines = o3d.utility.Vector2iVector(lines)
         line_set.colors = o3d.utility.Vector3dVector(colors)
         o3d.visualization.draw_geometries([line_set,self.pcd])
 
-
+    def drawLine(self,pt1=[0,0,0],pt2=[1,1,1],color_rgb=[1,0,0],vis=False):
+        """
+        Creates a geometry object representing a line between pt1 and pt2.
+        Set the vis flat to [T] to draw in a 3D viewer
+        """
+        line_set = o3d.geometry.LineSet()
+        line_set.points = o3d.utility.Vector3dVector([pt1, pt2])
+        line_set.lines = o3d.utility.Vector2iVector([[0, 1]])
+        line_set.colors = o3d.utility.Vector3dVector([color_rgb])
+        if vis: o3d.visualization.draw_geometries([line_set,self.pcd])
+        return line_set
 
     def getNumpyAll(self,verbose=False):
         """Returns an array of [X,Y,Z,R,G,B,NormX,NormY,NormZ]"""
@@ -171,6 +177,7 @@ if __name__ == '__main__':
         # TODO: Clean this up, this is mostly scratch work
         print(myOpen3d.getClusterLabels())
         myOpen3d.drawOrigin()
+        myOpen3d.drawLine(vis=True)
 
 
     except:
