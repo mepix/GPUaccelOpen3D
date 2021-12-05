@@ -6,7 +6,7 @@ import pickle
 
 
 class WrapperFileIO(object):
-    """docstring for ."""
+    """Wrapper around common Python3 I/O"""
 
     def __init__(self,file_path="../data/",file_name="test.pickle"):
         self.file_path = file_path
