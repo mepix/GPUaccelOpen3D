@@ -25,6 +25,11 @@ class WrapperOpen3d(object):
         self.point_cloud_loaded = True
         return None
 
+    def loadPointCloud(self,pcd):
+        """Loads a Point Cloud into the class"""
+        self.pcd = pcd
+        self.point_cloud_loaded = True
+
     def visPointCloud(self):
         """Visualizes the loaded point cloud"""
         if self.point_cloud_loaded:
