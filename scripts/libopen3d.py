@@ -2,6 +2,9 @@
 
 import numpy as np
 import open3d as o3d
+import copy
+import matplotlib.pyplot as plt
+
 
 class WrapperOpen3d(object):
     """This lightweight wrapper on Open3D converts a .ply point cloud into a NumPy Array"""
@@ -55,6 +58,57 @@ class WrapperOpen3d(object):
         else:
             print("No Point Cloud Loaded, Cannot Get Colors")
             return None
+
+    def getClusterLabels(self):
+        """Uses DBSCAN to cluster the point cloud and returns a NumPy label array"""
+        if self.point_cloud_loaded:
+            # Run the Clustering Algorithm
+            with o3d.utility.VerbosityContextManager(o3d.utility.VerbosityLevel.Debug) as cm:
+                labels = np.array(self.pcd.cluster_dbscan(eps=0.02, min_points=10, print_progress=True))
+
+            max_label = labels.max()
+            pcd = copy.deepcopy(self.pcd)
+            print(f"point cloud has {max_label + 1} clusters")
+            colors = plt.get_cmap("tab20")(labels / (max_label if max_label > 0 else 1))
+            colors[labels < 0] = 0
+            pcd.colors = o3d.utility.Vector3dVector(colors[:, :3])
+            o3d.visualization.draw_geometries([pcd],
+                                              zoom=0.455,
+                                              front=[-0.4999, -0.1659, -0.8499],
+                                              lookat=[2.1813, 2.0619, 2.0999],
+                                              up=[0.1204, -0.9852, 0.1215])
+
+
+            return labels
+        else:
+            print("No Point Cloud Loaded, Cannot Cluster Points")
+            return None
+
+    def drawBox(self):
+        print("Let\'s draw a cubic using o3d.geometry.LineSet")
+        points = [[0, 0, 0], [1, 0, 0], [0, 1, 0], [1, 1, 0], [0, 0, 1], [1, 0, 1],
+                  [0, 1, 1], [1, 1, 1]]
+        lines = [[0, 1], [0, 2], [1, 3], [2, 3], [4, 5], [4, 6], [5, 7], [6, 7],
+                 [0, 4], [1, 5], [2, 6], [3, 7]]
+        colors = [[1, 0, 0] for i in range(len(lines))]
+        line_set = o3d.geometry.LineSet()
+        line_set.points = o3d.utility.Vector3dVector(points)
+        line_set.lines = o3d.utility.Vector2iVector(lines)
+        line_set.colors = o3d.utility.Vector3dVector(colors)
+        o3d.visualization.draw_geometries([line_set])
+
+    def drawOrigin(self):
+        print("Let\'s draw a cubic using o3d.geometry.LineSet")
+        points = [[0, 0, 0], [1, 0, 0], [0, 1, 0], [0, 0, 1]]
+        lines = [[0, 1], [0, 2], [0, 3]]
+        colors = [[1, 0, 0] for i in range(len(lines))]
+        line_set = o3d.geometry.LineSet()
+        line_set.points = o3d.utility.Vector3dVector(points)
+        line_set.lines = o3d.utility.Vector2iVector(lines)
+        line_set.colors = o3d.utility.Vector3dVector(colors)
+        o3d.visualization.draw_geometries([line_set,self.pcd])
+
+
 
     def getNumpyAll(self,verbose=False):
         """Returns an array of [X,Y,Z,R,G,B,NormX,NormY,NormZ]"""
@@ -113,6 +167,10 @@ if __name__ == '__main__':
         # Convert the NumPy Data back to Point Cloud
         myOpen3d.pcd = myOpen3d.convertNumPyToPointCloud(myNumPyArray)
         myOpen3d.visPointCloud()
+
+        # TODO: Clean this up, this is mostly scratch work
+        print(myOpen3d.getClusterLabels())
+        myOpen3d.drawOrigin()
 
 
     except:
