@@ -82,8 +82,8 @@ if __name__ == '__main__':
     # Option 1: Convert the point clouds to pickle files
     if option in ['1']:
         try:
-            picklePointCloud("../data/","LeafPointCloud_0-01-13-010.ply","pointcloud1.pickle",True,True)
-            picklePointCloud("../data/","LeafPointCloud_0-01-14-041.ply","pointcloud2.pickle",False,True)
+            picklePointCloud("../data/","LeafPointCloud_0-01-01-089.ply","pointcloud1.pickle",True,True)
+            picklePointCloud("../data/","LeafPointCloud_0-01-01-602.ply","pointcloud2.pickle",False,True)
         except:
             print("ERROR, EXCEPTION THROWN")
         exit()
