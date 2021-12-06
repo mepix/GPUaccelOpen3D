@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 
-import timeit
 import numpy as np
 
 # My Classes
 import libfileio as my_io
+import libtimer as my_timer
 
 class RunKNN(object):
     """My Implementation of the KNN Algorithm"""
@@ -146,15 +146,24 @@ if __name__ == '__main__':
     # Intialize the KNN Classifier
     knn = RunKNN(k=5)
 
+    # Initialize the Timer
+    code_timer = my_timer.MyTimer()
+    code_timer.start()
+
     # Open the Point Cloud files for Training and Evaluation
     knn.getData("pointcloud1.pickle","pointcloud2.pickle")
+    print("Pickle Load Time:",code_timer.lap())
 
     # Run the CPU Implementation
-    knn.cpu(debug=True,run_count=15)
+    knn.cpu(debug=False,run_count=15)
+    print("CPU Run Time:",code_timer.lap())
     knn.saveData("pointcloud-cpu.pickle")
 
     # Run the GPU Implementation
     knn.gpu()
+    print("GPU Run Time:",code_timer.lap())
+
+    print("Total Run Time:",code_timer.ellapsed())
 
     try:
         print("NYI")
