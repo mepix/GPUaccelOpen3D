@@ -13,10 +13,18 @@ class WrapperOpen3d(object):
         self.point_cloud_loaded = False
         return None
 
-    def plyOpen(self,verbose=True):
+    def plyOpen(self,distance_thresh=-1,downsample_size=-1,verbose=True):
         """Opens the point cloud from a .ply file specificied at class initialization"""
         if verbose: print("Opening",self.path_to_ply)
         self.pcd = o3d.io.read_point_cloud(self.path_to_ply)
+
+        # Removes Points Outside Distance Threshold
+        if distance_thresh > 0:
+            self.pcd = self.distanceThresh(self.pcd,distance_thresh)
+
+        # Down Sample
+        if downsample_size > 0:
+            self.pcd = self.pcd.voxel_down_sample(voxel_size=downsample_size)
 
         # Display Information About the Point Cloud
         if verbose: print(self.pcd)
@@ -50,6 +58,27 @@ class WrapperOpen3d(object):
         pcd.colors = o3d.utility.Vector3dVector(colors[:, :3])
         o3d.visualization.draw_geometries([pcd])
 
+
+    def distanceThresh(self,pcd,thresh=0.5):
+        """
+        Removes all points that are outside the thresh from the origin
+        """
+        # https://stackoverflow.com/questions/65731659/open3dpython-how-to-remove-points-from-ply
+
+        # Get the Numpy Points
+        points = np.asarray(pcd.points)
+
+        # Sphere center and radius
+        center = np.array([0, 0, 0])
+
+        # Calculate distances to center, set new points
+        distances = np.linalg.norm(points - center, axis=1)
+        # pcd1.points = open3d.utility.Vector3dVector(points[distances <= radius])
+
+        idx = np.where(distances < thresh)[0]
+        pcd_thresh = pcd.select_by_index(idx)
+
+        return pcd_thresh
 
     def getNumPyPts(self):
         """Returns the opened point cloud as a NumPy Array"""
@@ -106,7 +135,6 @@ class WrapperOpen3d(object):
         o3d.visualization.draw_geometries([line_set])
 
     def drawOrigin(self):
-        print("Let\'s draw a cubic using o3d.geometry.LineSet")
         points = [[0, 0, 0], [1, 0, 0], [0, 1, 0], [0, 0, 1]]
         lines = [[0, 1], [0, 2], [0, 3]]
         colors = [[1, 0, 0],[0,1,0],[0,0,1]]
@@ -174,7 +202,7 @@ if __name__ == '__main__':
         myOpen3d = WrapperOpen3d("../data/LeafPointCloud.ply")
 
         # Open the Point Cloud
-        myOpen3d.plyOpen()
+        myOpen3d.plyOpen(distance_thresh=0.5,downsample=False)
 
         # Visualize the Point Cloud
         myOpen3d.visPointCloud()

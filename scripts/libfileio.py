@@ -4,7 +4,6 @@ import numpy as np
 import pickle
 
 
-
 class WrapperFileIO(object):
     """Wrapper around common Python3 I/O"""
 

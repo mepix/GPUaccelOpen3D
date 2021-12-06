@@ -124,7 +124,10 @@ class RunKNN(object):
             if debug: print("TopK",top_k)
 
             # Vote and Assign Labels
-            y_pred = np.bincount(top_k).argmax()
+            if top_k.size ==0: # check if empty
+                y_pred = -1
+            else:
+                y_pred = np.bincount(top_k).argmax()
             y_eval[i] = y_pred
             if debug: print("Predicted:",y_pred,"Actual",self.y_train[i])
 
@@ -155,7 +158,7 @@ if __name__ == '__main__':
     print("Pickle Load Time:",code_timer.lap())
 
     # Run the CPU Implementation
-    knn.cpu(debug=False,run_count=15)
+    knn.cpu(debug=True,run_count=0)
     print("CPU Run Time:",code_timer.lap())
     knn.saveData("pointcloud-cpu.pickle")
 

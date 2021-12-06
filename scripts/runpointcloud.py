@@ -7,10 +7,14 @@ import numpy as np
 import libopen3d as my_pc
 import libfileio as my_io
 
+distance_thresh = 0.5
+downsample_size = 0.01
+
+
 def picklePointCloud(path_to_data,file_name_ply,file_name_pickle,do_get_labels,visualize=False,verbose=True):
     # Open the Point Cloud at the Specified file path
     pctool = my_pc.WrapperOpen3d(path_to_data +file_name_ply)
-    pctool.plyOpen()
+    pctool.plyOpen(distance_thresh,downsample_size)
     if visualize: pctool.visPointCloud()
 
     # Convert it to a NumPy Array
@@ -78,8 +82,8 @@ if __name__ == '__main__':
     # Option 1: Convert the point clouds to pickle files
     if option in ['1']:
         try:
-            picklePointCloud("../data/","LeafPointCloud.ply","pointcloud1.pickle",True)
-            picklePointCloud("../data/","LeafPointCloud.ply","pointcloud2.pickle",False)
+            picklePointCloud("../data/","LeafPointCloud.ply","pointcloud1.pickle",True,True)
+            picklePointCloud("../data/","LeafPointCloud.ply","pointcloud2.pickle",False,True)
         except:
             print("ERROR, EXCEPTION THROWN")
         exit()
