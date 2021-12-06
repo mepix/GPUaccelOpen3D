@@ -1,10 +1,18 @@
 #!/usr/bin/env python3
 
 import numpy as np
+from numba import cuda # GPU Optimizations
 
 # My Classes
 import libfileio as my_io
 import libtimer as my_timer
+
+@cuda.jit
+def increment_a_2D_array(an_array):
+    x, y = cuda.grid(2)
+    if x < an_array.shape[0] and y < an_array.shape[1]:
+       an_array[x, y] += 1
+
 
 class RunKNN(object):
     """My Implementation of the KNN Algorithm"""
@@ -141,6 +149,18 @@ class RunKNN(object):
 
     def gpu(self):
         print("Running GPU Version")
+        try:
+            threadsperblock = (16, 16)
+            an_array = np.array([[1,2,3],[4,5,6]])
+            print(an_array)
+            blockspergrid_x = math.ceil(an_array.shape[0] / threadsperblock[0])
+            blockspergrid_y = math.ceil(an_array.shape[1] / threadsperblock[1])
+            blockspergrid = (blockspergrid_x, blockspergrid_y)
+            print(blockspergrid)
+            increment_a_2D_array[blockspergrid, threadsperblock](an_array)
+            print(an_array)
+        except:
+            print("GPU ERROR")
 
     def lib(self):
         print("Running Library Version from Open3D")
