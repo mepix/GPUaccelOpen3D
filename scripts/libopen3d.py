@@ -38,6 +38,19 @@ class WrapperOpen3d(object):
             print("No Point Cloud Loaded, Cannot Visualize")
         return None
 
+    def visPointCloudClusters(self,pcd,labels):
+        """
+        Colorizes the clusters in the procided point cloud. The internal point
+        cloud self.pcd is NOT changed by this routine
+        """
+        max_label = labels.max()
+        print(f"point cloud has {max_label + 1} clusters")
+        colors = plt.get_cmap("tab20")(labels / (max_label if max_label > 0 else 1))
+        colors[labels < 0] = 0
+        pcd.colors = o3d.utility.Vector3dVector(colors[:, :3])
+        o3d.visualization.draw_geometries([pcd])
+
+
     def getNumPyPts(self):
         """Returns the opened point cloud as a NumPy Array"""
         if self.point_cloud_loaded:
@@ -72,13 +85,7 @@ class WrapperOpen3d(object):
 
             # Display the Colored Point Cloud
             if visualize:
-                max_label = labels.max()
-                pcd = copy.deepcopy(self.pcd)
-                print(f"point cloud has {max_label + 1} clusters")
-                colors = plt.get_cmap("tab20")(labels / (max_label if max_label > 0 else 1))
-                colors[labels < 0] = 0
-                pcd.colors = o3d.utility.Vector3dVector(colors[:, :3])
-                o3d.visualization.draw_geometries([pcd])
+                self.visPointCloudClusters(copy.deepcopy(self.pcd),labels)
 
             return labels
         else:
@@ -180,7 +187,7 @@ if __name__ == '__main__':
         myOpen3d.visPointCloud()
 
         # TODO: Clean this up, this is mostly scratch work
-        print(myOpen3d.getClusterLabels())
+        print(myOpen3d.getClusterLabels(True))
         myOpen3d.drawOrigin()
         myOpen3d.drawLine(vis=True)
 

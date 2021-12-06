@@ -37,7 +37,7 @@ def picklePointCloud(path_to_data,file_name_ply,file_name_pickle,do_get_labels,v
 
     return None
 
-def visualizePointCloudPickle(path_to_data,file_name_pickle,verbose=True):
+def visualizePointCloudPickle(path_to_data,file_name_pickle,color_clusters=False,verbose=True):
     # Open the Pickle File
     iotool = my_io.WrapperFileIO(path_to_data,file_name_pickle)
     data_dict = iotool.loadPickle()
@@ -49,9 +49,14 @@ def visualizePointCloudPickle(path_to_data,file_name_pickle,verbose=True):
     # Convert to a Point Cloud Object
     pctool = my_pc.WrapperOpen3d(None)
     pcd = pctool.convertNumPyToPointCloud(data_numpy)
-    pctool.loadPointCloud(pcd)
-    pctool.visPointCloud()
-    #TODO: Write this Function
+
+
+    if color_clusters:
+        pctool.visPointCloudClusters(pcd,data_labels)
+    else:
+        pctool.loadPointCloud(pcd)
+        pctool.visPointCloud()
+
     return None
 
 if __name__ == '__main__':
@@ -61,7 +66,7 @@ if __name__ == '__main__':
         print("============ Select The Desired Point Cloud Operation ============")
         print("1) Transform the point cloud (.PLY) to a pickle file")
         print("2) Load and display the pickle files as point clouds")
-        print("3) Debug")
+        print("3) Load and display the pickle files with colored clusters")
         print("press \'q\' to quit")
         option = input("Enter Desired Option: ")
         print("Selected Option:",option)
@@ -83,7 +88,12 @@ if __name__ == '__main__':
     if option in ['2']:
         visualizePointCloudPickle("../data/","pointcloud1.pickle")
 
+    # Option 3: Convert the pickle files to point cloud objects with COLOR!
+    if option in ['3']:
+        visualizePointCloudPickle("../data/","pointcloud1.pickle",color_clusters=True)
+        visualizePointCloudPickle("../data/","pointcloud-cpu.pickle",color_clusters=True)
+
     # Future Options
-    if option in ['3','4']:
+    if option in ['4']:
         print("***::TODO::NYI::***")
         exit()

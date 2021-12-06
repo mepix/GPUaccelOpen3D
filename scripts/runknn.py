@@ -9,8 +9,8 @@ import libfileio as my_io
 class RunKNN(object):
     """My Implementation of the KNN Algorithm"""
 
-    def __init__(self,k=3):
-        self.io = my_io.WrapperFileIO("../data/",None)
+    def __init__(self,k=3,path_to_data="../data/"):
+        self.io = my_io.WrapperFileIO(path_to_data,None)
         self.k = k
 
     def getData(self,file_pickle_train, file_pick_eval,verbose=True):
@@ -57,6 +57,19 @@ class RunKNN(object):
         data_norm = (data-data.min(0)) / data.ptp(0)
 
         return data_norm
+
+    def saveData(self,file_name,verbose=True):
+        """Saves the processes data as a pickle file"""
+        # Process the data as a dictionary
+        data_dict = {
+            "points" : self.x_eval,
+            "labels" : self.y_eval
+        }
+        if verbose: print(data_dict)
+
+        # Save the File
+        self.io.savePickle(data_dict,file_name)
+        return None
 
     def cpu(self,x_train=None,y_train=None,x_eval=None,debug=True,run_count=0):
         """
@@ -118,7 +131,6 @@ class RunKNN(object):
             # Early Termination, for testing only!
             if (run_count > 0) and (i > run_count): break
 
-
         # Return the labels
         self.y_eval = y_eval
         return y_eval
@@ -131,9 +143,19 @@ class RunKNN(object):
         print("Running Library Version from Open3D")
 
 if __name__ == '__main__':
+    # Intialize the KNN Classifier
     knn = RunKNN(k=5)
+
+    # Open the Point Cloud files for Training and Evaluation
     knn.getData("pointcloud1.pickle","pointcloud2.pickle")
+
+    # Run the CPU Implementation
     knn.cpu(debug=True,run_count=15)
+    knn.saveData("pointcloud-cpu.pickle")
+
+    # Run the GPU Implementation
+    knn.gpu()
+
     try:
         print("NYI")
 
