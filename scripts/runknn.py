@@ -2,6 +2,7 @@
 
 import numpy as np
 from numba import cuda # GPU Optimizations
+import math
 
 # My Classes
 import libfileio as my_io
