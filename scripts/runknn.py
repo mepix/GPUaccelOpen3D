@@ -158,7 +158,7 @@ if __name__ == '__main__':
     print("Pickle Load Time:",code_timer.lap())
 
     # Run the CPU Implementation
-    knn.cpu(debug=True,run_count=0)
+    knn.cpu(debug=False,run_count=0)
     print("CPU Run Time:",code_timer.lap())
     knn.saveData("pointcloud-cpu.pickle")
 
