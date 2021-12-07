@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import numpy as np
-from numba import cuda, float32 # GPU Optimizations
+from numba import cuda, float32, uint16 # GPU Optimizations
 import math
 
 # My Classes
@@ -18,6 +18,9 @@ def increment_a_2D_array(an_array):
 TPB = 256 # Threads Per Block
 MAX_POINTS = 1280
 NUM_FEATURES = 9
+K_NEAREST = 5
+
+# Numba Datatypes: https://numba.pydata.org/numba-doc/latest/reference/types.html
 
 @cuda.jit
 def kernelKNN(x_train,y_train,x_eval,y_eval):
@@ -38,13 +41,10 @@ def kernelKNN(x_train,y_train,x_eval,y_eval):
     #     return
 
     # Load x_train into shared memory
-    for i in range(MAX_POINTS):
-        x_train_shared[i,:] = 1 #TODO: used shared memory
+    # for i in range(MAX_POINTS):
+    #     x_train_shared[i,:] = 1 #TODO: used shared memory
     # for i in range(int(x_train.shape[1]/TPB)):
     #     x_train_shared[tx,ty] = x_train[x, ty + i * TPB]
-
-    # Wait until all threads finish preloading
-    cuda.syncthreads()
 
     # Create an array to store the distances for this block
     distances = cuda.local.array(shape=(MAX_POINTS,1), dtype=float32)
@@ -61,22 +61,46 @@ def kernelKNN(x_train,y_train,x_eval,y_eval):
             sum += delta**2
 
         distances[j,1] = sum**0.5
-            #
-            # # Sort the distances
-            # idx = np.argsort(distances)
-            # top_k = self.y_train[idx[0:self.k]]
-            # top_k = top_k[top_k>=0]
-            # if debug: print("TopK",top_k)
-            #
-            # # Vote and Assign Labels
-            # if top_k.size ==0: # check if empty
-            #     y_pred = -1
-            # else:
-            #     y_pred = np.bincount(top_k).argmax()
-            # y_eval[i] = y_pred
-            # if debug: print("Predicted:",y_pred,"Actual",self.y_train[i])
 
+    # Wait until all threads finish preloading
+    cuda.syncthreads()
 
+    # Sort the distances
+    idx_top_k = cuda.local.array(shape=(K_NEAREST,1), dtype=uint16)
+    for i in range(K_NEAREST):
+        idx_nearest = i
+        val_nearest = distances[0,1] # assume the first point is nearest
+        for j in range(distances.shape[0]):
+            if (distances[j,1] < val_nearest):
+                if(idx_nearest == idx_top_k[i,1]):
+                    continue
+                idx_nearest = j
+                val_nearest = distances[j,1]
+        idx_top_k[i,1] = idx_nearest
+
+    # Vote and Assign Labels
+
+    # for i in range(K_NEAREST):
+    #     idx_nearest = i
+    #     for j in range(distances.shape[0]):
+    #         idx_nearest = j
+    #         val_nearest = distances[j,1]
+    #         if(distances[j,1] < val_nearest):
+    #             idx_nearest = j
+    #                 minIndex = j
+    #                 minValue = list[j]
+    #         swap list[i] and list[minIndex]
+    # return list[k]
+    # idx = np.argsort(distances)
+    # top_k = self.y_train[idx[0:self.k]]
+    # top_k = top_k[top_k>=0]
+
+    # # Vote and Assign Labels
+    # if top_k.size ==0: # check if empty
+    #     y_pred = -1
+    # else:
+    #     y_pred = np.bincount(top_k).argmax()
+    # y_eval[i] = y_pred
 
     # Each thread should correspond to a point in x_eval
     # Each thread needs to calculate the distance between it-s x_eval and all points in x_train
@@ -273,7 +297,7 @@ class RunKNN(object):
 
 if __name__ == '__main__':
     # Intialize the KNN Classifier
-    knn = RunKNN(k=5,threads_per_block=TPB)
+    knn = RunKNN(k=1,threads_per_block=TPB)
 
     # Initialize the Timer
     code_timer = my_timer.MyTimer()
