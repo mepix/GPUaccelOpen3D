@@ -16,13 +16,14 @@ def increment_a_2D_array(an_array):
 
 # https://stackoverflow.com/questions/41769100/how-do-i-use-numba-on-a-member-function-of-a-class
 TPB = 256 # Threads Per Block
-
+MAX_POINTS = 1280
+NUM_FEATURES = 9
 
 @cuda.jit
 def kernelKNN(x_train,y_train,x_eval,y_eval,num_pts_train,num_pts_eval,num_features):
 
     # Load the training point cloud into shared memory
-    x_train_shared = cuda.shared.array(shape=(1500,9), dtype=float32)
+    x_train_shared = cuda.shared.array(shape=(MAX_POINTS,NUM_FEATURES), dtype=float32)
     # x_eval_shared = cuda.shared.array(shape=(TPB, TPB), dtype=float32)
 
     x, y = cuda.grid(2)
@@ -46,7 +47,7 @@ def kernelKNN(x_train,y_train,x_eval,y_eval,num_pts_train,num_pts_eval,num_featu
     cuda.syncthreads()
 
     # Calculate distances
-    distances = cuda.local.array(shape=(1500,1), dytpe=float32)
+    distances = cuda.local.array(shape=(MAX_POINTS,NUM_FEATURES), dtype=float32)
 
     # Each thread should correspond to a point in x_eval
     # Each thread needs to calculate the distance between it-s x_eval and all points in x_train
