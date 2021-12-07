@@ -47,7 +47,7 @@ def kernelKNN(x_train,y_train,x_eval,y_eval):
     cuda.syncthreads()
 
     # Create an array to store the distances for this block
-    distances = cuda.shared.array(shape=(MAX_POINTS,1), dtype=float32)
+    distances = cuda.local.array(shape=(MAX_POINTS,1), dtype=float32)
     # Each thread corresponds to a point in the evaluation array
     # Calculate the distances for this point w.r.t all the points in the train
     for j in range(x_train.shape[0]):
