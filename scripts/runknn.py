@@ -38,16 +38,46 @@ def kernelKNN(x_train,y_train,x_eval,y_eval):
     #     return
 
     # Load x_train into shared memory
-    # for i in range(int(x_train))
+    for i in range(MAX_POINTS):
+        x_train_shared[i,:] = 1 #TODO: used shared memory
     # for i in range(int(x_train.shape[1]/TPB)):
     #     x_train_shared[tx,ty] = x_train[x, ty + i * TPB]
-
 
     # Wait until all threads finish preloading
     cuda.syncthreads()
 
-    # Calculate distances
-    distances = cuda.local.array(shape=(MAX_POINTS,NUM_FEATURES), dtype=float32)
+    # Create an array to store the distances for this block
+    distances = cuda.shared.array(shape=(MAX_POINTS,1), dtype=float32)
+    # Each thread corresponds to a point in the evaluation array
+    # Calculate the distances for this point w.r.t all the points in the train
+    for j in range(x_train.shape[0]):
+        # Calculate the distances
+        sum = 0.0
+        delta = x_eval[tx,:] - x_train[j,:]
+        # Iterate over the feautures
+            #     for n in range(num_features):
+            #         # Determine the delta between the eval and training features
+            #         delta = self.x_eval[i,n] - self.x_train[j,n]
+            #         # Increment the sum by the square of the features
+            #         sum += delta**2
+            #     # Add the distance to the distance array
+            #     distances[j] = sum**0.5
+            #
+            # # Sort the distances
+            # idx = np.argsort(distances)
+            # top_k = self.y_train[idx[0:self.k]]
+            # top_k = top_k[top_k>=0]
+            # if debug: print("TopK",top_k)
+            #
+            # # Vote and Assign Labels
+            # if top_k.size ==0: # check if empty
+            #     y_pred = -1
+            # else:
+            #     y_pred = np.bincount(top_k).argmax()
+            # y_eval[i] = y_pred
+            # if debug: print("Predicted:",y_pred,"Actual",self.y_train[i])
+
+
 
     # Each thread should correspond to a point in x_eval
     # Each thread needs to calculate the distance between it-s x_eval and all points in x_train
