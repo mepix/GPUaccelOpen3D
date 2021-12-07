@@ -20,7 +20,7 @@ MAX_POINTS = 1280
 NUM_FEATURES = 9
 
 @cuda.jit
-def kernelKNN(x_train,y_train,x_eval,y_eval,num_pts_train,num_pts_eval,num_features):
+def kernelKNN(x_train,y_train,x_eval,y_eval):
 
     # Load the training point cloud into shared memory
     x_train_shared = cuda.shared.array(shape=(MAX_POINTS,NUM_FEATURES), dtype=float32)
@@ -53,7 +53,7 @@ def kernelKNN(x_train,y_train,x_eval,y_eval,num_pts_train,num_pts_eval,num_featu
     # Each thread needs to calculate the distance between it-s x_eval and all points in x_train
 
     # load back into y_eval
-    y_eval = 1
+    # y_eval = 1
 
 
 class RunKNN(object):
@@ -214,7 +214,8 @@ class RunKNN(object):
         blockspergrid = (blockspergrid_x, blockspergrid_y)
         print("Blocks Per Grid",blockspergrid)
         print("Launching GPU Kernel")
-        kernelKNN[blockspergrid,threadsperblock](self.x_train,self.y_train,self.x_eval,self.y_eval,1500,1500,9)
+        self.y_eval = np.zeros(self.y_train.shape)
+        kernelKNN[blockspergrid,threadsperblock](self.x_train,self.y_train,self.x_eval,self.y_eval)
         if (self.x_train == self.x_eval):
             print("Arrays Match")
         else:
