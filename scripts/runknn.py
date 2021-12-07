@@ -21,7 +21,7 @@ TPB = 256 # Threads Per Block
 def kernelKNN(x_train,y_train,x_eval,y_eval):
     a=1
     # Load the training point cloud into shared memory
-    x_train_shared = cuda.shared.array(shape=x_train.shape, dtype=float32)
+    x_train_shared = cuda.shared.array(shape=(x_train.shape[0],x_train.shape[1]), dtype=float32)
     # x_eval_shared = cuda.shared.array(shape=(TPB, TPB), dtype=float32)
 
     x, y = cuda.grid(2)
