@@ -53,7 +53,7 @@ def kernelKNN(x_train,y_train,x_eval,y_eval):
     for j in range(x_train.shape[0]):
         # Calculate the distances
         sum = 0.0
-        delta = x_eval[tx,:] - x_train[j,:]
+        delta = x_eval[tx,0] - x_train[j,0]
         # Iterate over the feautures
             #     for n in range(num_features):
             #         # Determine the delta between the eval and training features
