@@ -22,7 +22,7 @@ TPB = 256 # Threads Per Block
 def kernelKNN(x_train,y_train,x_eval,y_eval,num_pts_train,num_pts_eval,num_features):
 
     # Load the training point cloud into shared memory
-    x_train_shared = cuda.shared.array(shape=(num_pts_train,num_features), dtype=float32)
+    x_train_shared = cuda.shared.array(shape=(1500,9), dtype=float32)
     # x_eval_shared = cuda.shared.array(shape=(TPB, TPB), dtype=float32)
 
     x, y = cuda.grid(2)
@@ -46,7 +46,7 @@ def kernelKNN(x_train,y_train,x_eval,y_eval,num_pts_train,num_pts_eval,num_featu
     cuda.syncthreads()
 
     # Calculate distances
-    distances = cuda.local.array(shape=(num_pts_eval,1), dytpe=float32)
+    distances = cuda.local.array(shape=(1500,1), dytpe=float32)
 
     # Each thread should correspond to a point in x_eval
     # Each thread needs to calculate the distance between it-s x_eval and all points in x_train
