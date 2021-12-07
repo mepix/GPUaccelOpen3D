@@ -82,7 +82,7 @@ def kernelKNN(x_train,y_train,x_eval,y_eval):
 
     # Vote and Assign Labels
     top_k = y_train[idx_top_k]
-    counter = cuda.local.array(shape=(K_NEAREST,1, dtype=uint16)
+    counter = cuda.local.array(shape=(K_NEAREST,1), dtype=uint16)
     # for i in range(idx_top_k):
     #
     #     for j in range(counter):
