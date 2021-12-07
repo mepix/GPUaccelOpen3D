@@ -213,7 +213,7 @@ class RunKNN(object):
         blockspergrid = (blockspergrid_x, blockspergrid_y)
         print("Blocks Per Grid",blockspergrid)
         print("Launching GPU Kernel")
-        kernelKNN[blockspergrid,threadsperblock](self.x_train,self.y_train,self.x_eval,self.y_eval,self.x_train.shape[0],self.x_eval.shape[0],self.x_eval.shape[1])
+        kernelKNN[blockspergrid,threadsperblock](self.x_train,self.y_train,self.x_eval,self.y_eval,1500,1500,9)
         if (self.x_train == self.x_eval):
             print("Arrays Match")
         else:
