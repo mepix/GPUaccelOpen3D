@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import numpy as np
-from numba import cuda, float32, uint16 # GPU Optimizations
+from numba import cuda, float32, uint16, int32 # GPU Optimizations
 import math
 
 # My Classes
@@ -66,7 +66,7 @@ def kernelKNN(x_train,y_train,x_eval,y_eval):
     cuda.syncthreads()
 
     # Sort the distances
-    idx_top_k = cuda.local.array(shape=(K_NEAREST,1), dtype=uint16)
+    idx_top_k = cuda.local.array(shape=(K_NEAREST,1), dtype=int32)
     for i in range(K_NEAREST):
         idx_nearest = i
         val_nearest = distances[0,1] # assume the first point is nearest
@@ -82,7 +82,7 @@ def kernelKNN(x_train,y_train,x_eval,y_eval):
 
     # Vote and Assign Labels
     top_k = cuda.local.array(shape=(K_NEAREST,1), dtype=float32)
-    top_k = y_train[int(idx_top_k[0]),1]
+    top_k = y_train[idx_top_k[0],1]
     counter = cuda.local.array(shape=(K_NEAREST,1), dtype=uint16)
     # for i in range(idx_top_k):
     #
