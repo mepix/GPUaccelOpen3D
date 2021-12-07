@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import numpy as np
-from numba import cuda # GPU Optimizations
+from numba import cuda, float32 # GPU Optimizations
 import math
 
 # My Classes
