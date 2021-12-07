@@ -60,10 +60,7 @@ def kernelKNN(x_train,y_train,x_eval,y_eval):
             # Increment the sum by the square of the features
             sum += delta**2
 
-            #     for n in range(num_features):
-            #         delta = self.x_eval[i,n] - self.x_train[j,n]
-            #     # Add the distance to the distance array
-            #     distances[j] = sum**0.5
+        distances[j] = sum**0.5
             #
             # # Sort the distances
             # idx = np.argsort(distances)
