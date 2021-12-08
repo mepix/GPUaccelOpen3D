@@ -84,22 +84,6 @@ def kernelKNN(x_train,y_train,x_eval,y_eval):
     # Select the top K labels
     top_k = y_train[0:K_NEAREST]
 
-
-    # top_k = cuda.local.array(shape=(K_NEAREST,1), dtype=float32)
-    # top_k_idx = cuda.local.array(shape=(K_NEAREST,1), dtype=int32)
-    # # for i in range(K_NEAREST):
-    # #     idx_nearest = i
-    # #     val_nearest = distances[0,1] # assume the first point is nearest
-    # #     for j in range(distances.shape[0]):
-    # #         if (distances[j,1] < val_nearest):
-    # #             if(idx_nearest == top_k_idx[i,1]):
-    # #                 continue
-    # #             idx_nearest = j
-    # #             val_nearest = distances[j,1]
-    # #     top_k_idx[i,1] = idx_nearest
-    # #     top_k[i,1] = val_nearest
-
-
     # Vote and Assign Labels
     counter = cuda.local.array(shape=(K_NEAREST,1), dtype=uint16)
     count_max = 0.0
