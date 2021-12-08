@@ -65,40 +65,55 @@ def kernelKNN(x_train,y_train,x_eval,y_eval):
     # Wait until all threads finish preloading
     cuda.syncthreads()
 
-    # Sort the distances
-    idx_top_k = cuda.local.array(shape=(K_NEAREST,1), dtype=int32)
-    for i in range(K_NEAREST):
-        idx_nearest = i
-        val_nearest = distances[0,1] # assume the first point is nearest
-        for j in range(distances.shape[0]):
-            if (distances[j,1] < val_nearest):
-                if(idx_nearest == idx_top_k[i,1]):
-                    continue
-                idx_nearest = j
-                val_nearest = distances[j,1]
-        idx_top_k[i,1] = idx_nearest
+    # Sort the distances (Selection Sort)
+    for i in range(distances.shape[0]-1):
+        min_val = distances[i,0]
+        min_idx = i
+        y_val = y_train[i]
+        for j in range(i+1,distances.shape[0]):
+            if distances[j,0] < min_val:
+                min_val = distances[j,0]
+                min_idx = j
+                y_val = y_train[j]
+        distances[min_idx,0] = distances[i,0]
+        distances[i,0] = min_val
 
+        y_train[min_idx] = y_train[i]
+        y_train[i] = y_val
+
+    # Select the top K labels
+    top_k = y_train[0:K_NEAREST]
+
+
+    # top_k = cuda.local.array(shape=(K_NEAREST,1), dtype=float32)
+    # top_k_idx = cuda.local.array(shape=(K_NEAREST,1), dtype=int32)
+    # # for i in range(K_NEAREST):
+    # #     idx_nearest = i
+    # #     val_nearest = distances[0,1] # assume the first point is nearest
+    # #     for j in range(distances.shape[0]):
+    # #         if (distances[j,1] < val_nearest):
+    # #             if(idx_nearest == top_k_idx[i,1]):
+    # #                 continue
+    # #             idx_nearest = j
+    # #             val_nearest = distances[j,1]
+    # #     top_k_idx[i,1] = idx_nearest
+    # #     top_k[i,1] = val_nearest
 
 
     # Vote and Assign Labels
-    top_k = cuda.local.array(shape=(K_NEAREST,1), dtype=float32)
-    top_k = y_train[1]#idx_top_k[0],1]
     counter = cuda.local.array(shape=(K_NEAREST,1), dtype=uint16)
-    # for i in range(idx_top_k):
-    #
-    #     for j in range(counter):
+    count_max = 0.0
+    val_max = 0
+    for i in range(top_k.shape[0]):
+        val_current = top_k[i,1]
+        count_now = 0.0
+        for j in range(top_k.shape[0]):
+            if (val_current == top_k[j,1]):
+                count_now += 1
+                if (count_now > count_max):
+                    count_max = count_now
 
-    # for i in range(K_NEAREST):
-    #     idx_nearest = i
-    #     for j in range(distances.shape[0]):
-    #         idx_nearest = j
-    #         val_nearest = distances[j,1]
-    #         if(distances[j,1] < val_nearest):
-    #             idx_nearest = j
-    #                 minIndex = j
-    #                 minValue = list[j]
-    #         swap list[i] and list[minIndex]
-    # return list[k]
+
     # idx = np.argsort(distances)
     # top_k = self.y_train[idx[0:self.k]]
     # top_k = top_k[top_k>=0]
@@ -264,19 +279,29 @@ class RunKNN(object):
         print("X_train Shape",self.x_train.shape)
         print("X_eval Shape",self.x_eval.shape)
 
+        # Explicitly Create Numbas Types
+        self.y_eval = np.zeros(self.y_train.shape)
+
+        d_x_train = cuda.to_device(self.x_train)#,dtype=float32)
+        d_y_train = cuda.to_device(self.y_train)#,dtype=int32)
+        d_x_eval = cuda.to_device(self.x_eval)#,dtype=float32)
+        d_y_eval = cuda.to_device(self.y_eval)#,dtype=int32)
+
         # Set up the Kernel
         # threadsperblock = (int(np.sqrt(self.tpb)), int(np.sqrt(self.tpb)))
         threadsperblock = (self.tpb, 1)
-
         print("Threads Per Block",threadsperblock)
         blockspergrid_x = math.ceil(self.x_train.shape[0] / threadsperblock[0])
         blockspergrid_y = 1
         # blockspergrid_y = math.ceil(self.x_train.shape[1] / threadsperblock[1])
         blockspergrid = (blockspergrid_x, blockspergrid_y)
         print("Blocks Per Grid",blockspergrid)
+
+        # Launch the Kernel
         print("Launching GPU Kernel")
-        self.y_eval = np.zeros(self.y_train.shape)
-        kernelKNN[blockspergrid,threadsperblock](self.x_train,self.y_train,self.x_eval,self.y_eval)
+        kernelKNN[blockspergrid,threadsperblock](d_x_train,d_y_train,d_x_eval,d_y_eval)
+        # kernelKNN[blockspergrid,threadsperblock](self.x_train,self.y_train,self.x_eval,self.y_eval)
+
         if (self.x_train == self.x_eval):
             print("Arrays Match")
         else:
