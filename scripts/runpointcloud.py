@@ -96,6 +96,7 @@ if __name__ == '__main__':
     if option in ['3']:
         visualizePointCloudPickle("../data/","pointcloud1.pickle",color_clusters=True)
         visualizePointCloudPickle("../data/","pointcloud-cpu.pickle",color_clusters=True)
+        visualizePointCloudPickle("../data/","pointcloud-gpu.pickle",color_clusters=True)
 
     # Future Options
     if option in ['4']:
