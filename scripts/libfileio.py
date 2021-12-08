@@ -35,7 +35,8 @@ class WrapperFileIO(object):
         with open(file_to_open, 'rb') as handle:
             return pickle.load(handle)
 
-
+    def saveCSV(self,data_arr,save_file_name):
+        np.savetxt(self.file_path+save_file_name,data_arr, delimiter=",")
 
 if __name__ == '__main__':
 
