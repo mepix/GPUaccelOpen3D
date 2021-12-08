@@ -86,6 +86,11 @@ def kernelKNN(x_train,y_train,x_eval,y_eval):
             y_train_copy[i,0] = 0
 
     # Sort the distances (Selection Sort)
+    # TODO: consider breaking this out into another kernel
+    # SEE: https://stackoverflow.com/questions/43962195/selection-sort-in-cuda
+    # It seems like either a radix or a bucket sorts is better fit for GPU
+    # SEE: https://en.wikipedia.org/wiki/Radix_sort
+    # SEE: https://stackoverflow.com/questions/34023841/vectorized-radix-sort-with-numpy-can-it-beat-np-sort
     for i in range(distances.shape[0]-1):
         min_val = distances[i,0]
         min_idx = i
