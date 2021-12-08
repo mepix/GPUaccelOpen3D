@@ -3,6 +3,7 @@
 import numpy as np
 from numba import cuda, float32, uint16, int32 # GPU Optimizations
 import math
+import copy
 
 # My Classes
 import libfileio as my_io
@@ -24,6 +25,12 @@ K_NEAREST = 5
 
 @cuda.jit
 def kernelKNN(x_train,y_train,x_eval,y_eval):
+    """
+    This is a rather naive implementation of a KNN Kernel:
+    -> Each thread should correspond to a point in the x_eval point cloud
+    -> Each thread calculates the distance between it's x_eval and all points
+       in x_train
+    """
 
     # Load the training point cloud into shared memory
     x_train_shared = cuda.shared.array(shape=(MAX_POINTS,NUM_FEATURES), dtype=float32)
@@ -35,10 +42,11 @@ def kernelKNN(x_train,y_train,x_eval,y_eval):
     ty = cuda.threadIdx.y
     bpg = cuda.gridDim.x    # blocks per grid
 
-    # # Check Boundaries
-    # if x >= C.shape[0] or y >= C.shape[1]:
-    #     # Quit if (x, y) is outside of valid C boundary
-    #     return
+    stride = cuda.blockIdx.x *cuda.blockDim.x
+
+    # Check Boundaries
+    if stride + tx > x_eval.shape[0]:
+        return
 
     # Load x_train into shared memory
     # for i in range(MAX_POINTS):
@@ -56,65 +64,67 @@ def kernelKNN(x_train,y_train,x_eval,y_eval):
         # Iterate over the feautures
         for n in range(NUM_FEATURES):
             # Determine the delta between the eval and training features
-            delta = x_eval[tx,n] - x_train[j,n]
+            delta = x_eval[stride+tx,n] - x_train[j,n]
             # Increment the sum by the square of the features
             sum += delta**2
 
-        distances[j,1] = sum**0.5
+        distances[j,0] = sum**0.5
 
     # Wait until all threads finish preloading
     cuda.syncthreads()
+
+    # FOR DEBUG OF DISTANCES ONLY
+    # y_eval[stride+tx] = distances[0,0]
+    # return
+
+    # Make a local copy of the labels so not all threads are trying to sort at once!
+    y_train_copy = cuda.local.array(shape=(MAX_POINTS,1), dtype=int32)
+    for i in range(MAX_POINTS):
+        if i < y_train.shape[0]:
+            y_train_copy[i,0] = y_train[i]
+        else:
+            y_train_copy[i,0] = 0
 
     # Sort the distances (Selection Sort)
     for i in range(distances.shape[0]-1):
         min_val = distances[i,0]
         min_idx = i
-        y_val = y_train[i]
+        y_val = y_train_copy[i,0]
         for j in range(i+1,distances.shape[0]):
             if distances[j,0] < min_val:
                 min_val = distances[j,0]
                 min_idx = j
-                y_val = y_train[j]
+                y_val = y_train_copy[j,0]
         distances[min_idx,0] = distances[i,0]
         distances[i,0] = min_val
 
-        y_train[min_idx] = y_train[i]
-        y_train[i] = y_val
+        y_train_copy[min_idx] = y_train_copy[i,0]
+        y_train_copy[i,0] = y_val
 
     # Select the top K labels
-    top_k = y_train[0:K_NEAREST]
+    offset = MAX_POINTS - y_train.shape[0] #Offset need since there are padded zeros
+    # print(offset)
+    # print(y_train_copy[offset,0])
+    top_k = y_train_copy[offset:offset+K_NEAREST,0]
+    print(top_k[0],top_k[1],top_k[2],top_k[3],top_k[4])
 
     # Vote and Assign Labels
     counter = cuda.local.array(shape=(K_NEAREST,1), dtype=uint16)
-    count_max = 0.0
-    val_max = 0
+    count_max = 0
+    y_pred = 0
     for i in range(top_k.shape[0]):
-        val_current = top_k[i,1]
-        count_now = 0.0
+        val_current = top_k[i]
+        count_now = 0
         for j in range(top_k.shape[0]):
-            if (val_current == top_k[j,1]):
+            if (val_current == top_k[j]):
                 count_now += 1
                 if (count_now > count_max):
                     count_max = count_now
-
-
-    # idx = np.argsort(distances)
-    # top_k = self.y_train[idx[0:self.k]]
-    # top_k = top_k[top_k>=0]
-
-    # # Vote and Assign Labels
-    # if top_k.size ==0: # check if empty
-    #     y_pred = -1
-    # else:
-    #     y_pred = np.bincount(top_k).argmax()
-    # y_eval[i] = y_pred
-
-    # Each thread should correspond to a point in x_eval
-    # Each thread needs to calculate the distance between it-s x_eval and all points in x_train
+                    y_pred = top_k[j]
+        counter[i] = count_now
 
     # load back into y_eval
-    # y_eval = 1
-
+    y_eval[stride+tx] = y_pred#distances[0,0]#y_pred #TODO: fix stride
 
 class RunKNN(object):
     """My Implementation of the KNN Algorithm"""
@@ -263,8 +273,9 @@ class RunKNN(object):
         print("X_train Shape",self.x_train.shape)
         print("X_eval Shape",self.x_eval.shape)
 
-        # Explicitly Create Numbas Types
-        self.y_eval = np.zeros(self.y_train.shape)
+        # Explicitly Create Numbas Types for the DEVICE
+        self.y_eval = np.zeros(self.x_eval.shape[0])
+        y_train_copy = copy.deepcopy(self.y_train)
 
         d_x_train = cuda.to_device(self.x_train)#,dtype=float32)
         d_y_train = cuda.to_device(self.y_train)#,dtype=int32)
@@ -286,13 +297,25 @@ class RunKNN(object):
         kernelKNN[blockspergrid,threadsperblock](d_x_train,d_y_train,d_x_eval,d_y_eval)
         # kernelKNN[blockspergrid,threadsperblock](self.x_train,self.y_train,self.x_eval,self.y_eval)
 
-        if (self.x_train == self.x_eval):
-            print("Arrays Match")
-        else:
-            print("Train")
-            print(self.x_train)
-            print("Eval")
-            print(self.x_eval)
+        # Copy back to the host
+        self.y_eval = d_y_eval.copy_to_host()
+        print(self.y_eval)
+        print(max(self.y_eval))
+
+        # Write Labels to CSV File for Analysis
+        self.io.saveCSV(self.y_eval,"test.csv")
+
+        print(y_train_copy)
+        print(self.y_train)
+        print(d_y_train.copy_to_host()) # OH NO, this is getting changed!
+
+        # if (self.x_train == self.x_eval):
+        #     print("Arrays Match")
+        # else:
+        #     print("Train")
+        #     print(self.x_train)
+        #     print("Eval")
+        #     print(self.x_eval)
 
     def gpu_test(self):
         print("Running GPU Test")
