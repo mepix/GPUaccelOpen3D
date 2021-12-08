@@ -138,7 +138,7 @@ class RunKNN(object):
         self.x_eval = None
         self.y_eval = None
 
-    def getData(self,file_pickle_train, file_pick_eval,verbose=True):
+    def getData(self,file_pickle_train, file_pick_eval,verbose=False):
         """
         Opens the pickle files corresponing to the training and evaluation point
         cloud.
@@ -183,7 +183,7 @@ class RunKNN(object):
 
         return data_norm
 
-    def saveData(self,file_name,verbose=True):
+    def saveData(self,file_name,verbose=False):
         """Saves the processes data as a pickle file"""
         # Process the data as a dictionary
         data_dict = {
