@@ -36,6 +36,9 @@ class WrapperFileIO(object):
             return pickle.load(handle)
 
     def saveCSV(self,data_arr,save_file_name):
+        """
+        Saves the provides NumPy data array to a CSV file.
+        """
         np.savetxt(self.file_path+save_file_name,data_arr, delimiter=",")
 
 if __name__ == '__main__':
