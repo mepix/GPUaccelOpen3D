@@ -106,7 +106,7 @@ def kernelKNN(x_train,y_train,x_eval,y_eval):
     # print(offset)
     # print(y_train_copy[offset,0])
     top_k = y_train_copy[offset:offset+K_NEAREST,0]
-    print(top_k[0],top_k[1],top_k[2],top_k[3],top_k[4])
+    # print(top_k[0],top_k[1],top_k[2],top_k[3],top_k[4])
 
     # Vote and Assign Labels
     counter = cuda.local.array(shape=(K_NEAREST,1), dtype=uint16)
@@ -263,7 +263,7 @@ class RunKNN(object):
         self.y_eval = y_eval
         return y_eval
 
-    def gpu(self,x_train=None,y_train=None,x_eval=None,debug=True):
+    def gpu(self,x_train=None,y_train=None,x_eval=None,debug=False):
         print("Running GPU Version")
 
         # Assign the Local Data (If applicable)
@@ -299,23 +299,14 @@ class RunKNN(object):
 
         # Copy back to the host
         self.y_eval = d_y_eval.copy_to_host()
-        print(self.y_eval)
-        print(max(self.y_eval))
 
-        # Write Labels to CSV File for Analysis
-        self.io.saveCSV(self.y_eval,"test.csv")
+        if debug:
+            # Write Labels to CSV File for Analysis
+            self.io.saveCSV(self.y_eval,"test.csv")
 
-        print(y_train_copy)
-        print(self.y_train)
-        print(d_y_train.copy_to_host()) # OH NO, this is getting changed!
-
-        # if (self.x_train == self.x_eval):
-        #     print("Arrays Match")
-        # else:
-        #     print("Train")
-        #     print(self.x_train)
-        #     print("Eval")
-        #     print(self.x_eval)
+            print(y_train_copy)
+            print(self.y_train)
+            print(d_y_train.copy_to_host()) # OH NO, this is getting changed!
 
     def gpu_test(self):
         print("Running GPU Test")
@@ -337,7 +328,7 @@ class RunKNN(object):
 
 if __name__ == '__main__':
     # Intialize the KNN Classifier
-    knn = RunKNN(k=1,threads_per_block=TPB)
+    knn = RunKNN(k=K_NEAREST,threads_per_block=TPB)
 
     # Initialize the Timer
     code_timer = my_timer.MyTimer()
@@ -348,13 +339,16 @@ if __name__ == '__main__':
     print("Pickle Load Time:",code_timer.lap())
 
     # Run the CPU Implementation
-    # knn.cpu(debug=False,run_count=0)
+    knn.cpu(debug=False,run_count=0)
     print("CPU Run Time:",code_timer.lap())
-    # knn.saveData("pointcloud-cpu.pickle")
+    knn.saveData("pointcloud-cpu.pickle")
+    print("CPU Pickle Save Time",code_timer.lap())
 
     # Run the GPU Implementation
     knn.gpu()
     print("GPU Run Time:",code_timer.lap())
+    knn.saveData("pointcloud-gpu.pickle")
+    print("GPU Pickle Save Time",code_timer.lap())
 
     print("Total Run Time:",code_timer.ellapsed())
 
