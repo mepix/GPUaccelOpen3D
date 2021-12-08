@@ -41,7 +41,7 @@ def picklePointCloud(path_to_data,file_name_ply,file_name_pickle,do_get_labels,v
 
     return None
 
-def visualizePointCloudPickle(path_to_data,file_name_pickle,color_clusters=False,verbose=True):
+def visualizePointCloudPickle(path_to_data,file_name_pickle,color_clusters=False,fit_plane=False,verbose=True):
     # Open the Pickle File
     iotool = my_io.WrapperFileIO(path_to_data,file_name_pickle)
     data_dict = iotool.loadPickle()
@@ -54,12 +54,16 @@ def visualizePointCloudPickle(path_to_data,file_name_pickle,color_clusters=False
     pctool = my_pc.WrapperOpen3d(None)
     pcd = pctool.convertNumPyToPointCloud(data_numpy)
 
-
+    # Color the Clusters within the Point Cloud
     if color_clusters:
         pctool.visPointCloudClusters(pcd,data_labels)
     else:
         pctool.loadPointCloud(pcd)
         pctool.visPointCloud()
+
+    # Fit a plane to the existing points
+    if fit_plane:
+        pctool.fitPlane()
 
     return None
 
@@ -71,6 +75,7 @@ if __name__ == '__main__':
         print("1) Transform the point cloud (.PLY) to a pickle file")
         print("2) Load and display the pickle files as point clouds")
         print("3) Load and display the pickle files with colored clusters")
+        print("4) Apply built-in RANSAC to a leaf point cloud")
         print("press \'q\' to quit")
         option = input("Enter Desired Option: ")
         print("Selected Option:",option)
@@ -98,7 +103,10 @@ if __name__ == '__main__':
         visualizePointCloudPickle("../data/","pointcloud-cpu.pickle",color_clusters=True)
         visualizePointCloudPickle("../data/","pointcloud-gpu.pickle",color_clusters=True)
 
-    # Future Options
+    # Option 4: Leaf Point Cloud with RANSAC
     if option in ['4']:
-        print("***::TODO::NYI::***")
-        exit()
+        visualizePointCloudPickle("../data/","pointcloud-ransac.pickle",color_clusters=False,fit_plane=True)
+
+
+    # End Program
+    exit()
