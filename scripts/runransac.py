@@ -100,34 +100,101 @@ class RunRANSAC(object):
         # Return the max label
         return max_label
 
-    def cpu(self,x_train=None,y_train=None,x_eval=None,debug=True,run_count=0):
+    def cpu(self,x_eval=None,y_eval=None,debug=True):
         """
         Runs the CPU version of the RANSAC algorithm on the provided data. If no
-        arguments are passed for x_train, y_train, or x_eval, the classifier
-        will utilize the data already loaded by the class with the getData()
-        routine.
+        arguments are passed for x_eval or y_eval, the algorithm will utilize
+        the data already loaded by the class with the getData() routine.
 
         Setting the debug flag to [T] will cause statements to be printed to
         the command line. It is recommended to set this flag to [F] when timing
 
-        If an argument is passed run_count, the classifier will terminate after
-        classifing that many instances of the x_eval data set.
+        THE MATH
+
+        A plane is defined as:
+
+        $$ ax + by + cz + d = 0 $$
+
+        Given three points, the constants can be determined:
+
+        $$ a = [(y_2 - y_1)(z_3 - z_1) - (z_2 - z_1)(y_3 - y_2)] $$
+        $$ b = [(z_2 - z_1)(x_3 - x_1) - (x_2 - x_1)(z_3 - z_2)] $$
+        $$ c = [(x_2 - x_1)(y_3 - y_1) - (y_2 - y_1)(x_3 - x_2)] $$
+        $$ d = -(a * x_n + b * y_n + c * z_n) $$
+
+        Consider all the other points in the point cloud and calculate the
+        distance to the fit plane
+
+        $$distance = \frac{a*x_4 + b*y_4 + c*z_5 + d}{\sqrt{a^2 + b^2 + c^2}}$$
+
+        REFERENCES
+        https://en.wikipedia.org/wiki/Random_sample_consensus
+        https://medium.com/@ajithraj_gangadharan/3d-ransac-algorithm-for-lidar-pcd-segmentation-315d2a51351
         """
         if debug: print("Running CPU Version")
 
         # Assign the Local Data (If applicable)
-        if x_train is not None: self.x_train = x_train
-        if y_train is not None: self.y_train = y_train
+        if x_eval is not None: self.x_eval = x_eval
+        if y_eval is not None: self.y_eval = y_eval
 
         # Get up Variables
         # num_pts_train = self.x_train.shape[0]
         # y_eval = np.zeros(num_pts_eval)
 
         # Perform the Iterations
-        points_on_plane = []
+        pts_idx_inliers = [] # For points already on the plane
+        pts_best = []
+        constants_best = []
         for i in range(self.num_iters):
-            candidate_points = np.zeros(3)
+            # Get a Random Sampling of Candidate Indexs
+            pts_idx = np.random.randint(0,self.x_eval.shape[0],(3))
+            # pts_idx_inliers(pts_idx)
 
+            if debug: print("Candidate Points Index:\n",pts_idx)
+
+            # Get the Candidate Points
+            pts = self.x_eval[pts_idx,:]
+            if debug: print("Candidate Points:\n",pts)
+
+            # Calculate the Constants for the given points
+
+            # $$ a = [(y_2 - y_1)(z_3 - z_1) - (z_2 - z_1)(y_3 - y_2)] $$
+            a = (pts[1,1]-pts[0,1])*(pts[2,2]-pts[0,2]) - (pts[1,2]-pts[0,2])*(pts[2,1]-pts[1,1])
+
+            # $$ b = [(z_2 - z_1)(x_3 - x_1) - (x_2 - x_1)(z_3 - z_2)] $$
+            b = (pts[1,2]-pts[0,2])*(pts[2,0]-pts[0,0]) - (pts[1,0]-pts[0,0])*(pts[2,2]-pts[1,2])
+
+            # $$ c = [(x_2 - x_1)(y_3 - y_1) - (y_2 - y_1)(x_3 - x_2)] $$
+            c = (pts[1,0]-pts[0,0])*(pts[2,1]-pts[0,1]) - (pts[1,1]-pts[0,1])*(pts[2,0]-pts[1,0])
+
+            # $$ d = -(a * x_n + b * y_n + c * z_n) $$
+            d = -(a*pts[0,0] + b*pts[0,1] + c*pts[0,2])
+
+            # $$ psq = sqrt{(a^2) + (b^2 + (c^2)} $$
+            psq = max(0.1,np.sqrt(a*a + b*b + c*c))
+
+            if debug: print(a,b,c,d)
+
+            # Evaluate the Performance of the Fit
+            for j in range(self.x_eval.shape[0]):
+                # We do not want to compare with points used to calc a,b,c,d
+                # if j in pts_idx: continue
+
+                # Calc distance between point and plane
+                if debug: print(j)
+                dist = math.fabs(a*pts[j,0] + b*pts[j,1] + c*pts[j,2] + d)/psq
+
+                # Check whether or no the point is a good fit
+                if (dist <= self.dist_thresh):
+                    # Add to the list if inlier points
+                    pts = np.vstack((pts,self.x_eval[j,:]))
+
+            # Check if the current inliers is better than the best so far
+            if len(pts) > len(pts_best):
+                pts_best = pts
+                constants_best = np.array([a,b,c,d])
+
+        return pts_best, constants_best
 
 
 if __name__ == '__main__':
@@ -149,11 +216,13 @@ if __name__ == '__main__':
     ransac.selectCluster(ransac.x_train,ransac.y_train)
     ransac.saveData("pointcloud-ransac.pickle")
     print("CPU Pickle Save Time",code_timer.lap())
-
+    code_timer.lap()
 
     # Run the CPU Implementation
-    ransac.cpu(debug=False,run_count=0)
+    _, plane_constants = ransac.cpu(debug=False)
     print("CPU Run Time:",code_timer.lap())
+    print("CPU Plane Constants:",plane_constants)
+
 
     # Run the GPU Implementation
     # knn.gpu()
