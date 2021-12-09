@@ -93,7 +93,7 @@ def kernelRANSAC_2(point_cloud,plane_constants,dist_thresh,count_constants):
     stride_y = cuda.blockIdx.y*cuda.blockDim.y
 
     # Check Boundaries
-    if stride_x + tx > NUM_ITERATIONS:
+    if stride_x + tx > NUM_ITERATIONS or stride_y + ty >= point_cloud.shape[0]:
         return
 
     # Get the plane_constants
@@ -102,11 +102,6 @@ def kernelRANSAC_2(point_cloud,plane_constants,dist_thresh,count_constants):
     c = plane_constants[stride_x+tx,2]
     d = plane_constants[stride_x+tx,3]
     psq = plane_constants[stride_x+tx,4]
-
-    # Evaluate the Performance of the Fit
-    # pts_inliers = None
-    if stride_y + ty >= point_cloud.shape[0]:
-        return
 
     # Calc distance between point and plane
     dist = math.fabs(a*point_cloud[stride_y+ty,0] + b*point_cloud[stride_y+ty,1] + c*point_cloud[stride_y+ty,2] + d)/psq
@@ -428,9 +423,3 @@ if __name__ == '__main__':
 
     # Consider Total Run Time
     print("Total Run Time:",code_timer.ellapsed())
-
-    try:
-        print("NYI")
-
-    except:
-        print("ERROR, EXCEPTION THROWN")

@@ -356,9 +356,3 @@ if __name__ == '__main__':
     print("GPU Pickle Save Time",code_timer.lap())
 
     print("Total Run Time:",code_timer.ellapsed())
-
-    try:
-        print("NYI")
-
-    except:
-        print("ERROR, EXCEPTION THROWN")
