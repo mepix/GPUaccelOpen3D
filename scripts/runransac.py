@@ -2,6 +2,7 @@
 
 import numpy as np
 from numba import cuda, float32, uint16, int32 # GPU Optimizations
+from numba.cuda.random import create_xoroshiro128p_states, xoroshiro128p_uniform_float32
 import math
 import copy
 
@@ -10,8 +11,72 @@ import libfileio as my_io
 import libtimer as my_timer
 
 NUM_ITERATIONS = 100
-DISTANCE_THRESHOLD = 1
+DISTANCE_THRESHOLD = 1#0.1
 THREADS_PER_BLOCK = 256
+
+"""
+Kernel 1: Calculate Constants a,b,c,d from the point cloud
+    IN: [full_point_cloud]
+    OUT: [a,b,c,d]
+Kernel 2: Evaluate the fit for points a,b,c,d
+    IN: [point cloud], [a,b,c,d]
+    OUT: [inlier_points]
+"""
+
+@cuda.jit
+def kernelRANSAC_1(point_cloud,plane_constants):
+    """
+    Calculates the constants a,b,c,d from the point_cloud that fit the plane
+    equation: ax + by + cz + d = 0
+    """
+
+    # Get the current thread ID
+    tx = cuda.threadIdx.x
+    stride = cuda.blockIdx.x*cuda.blockDim.x
+
+    # Check Bounds
+    if stride + tx > point_cloud.shape[0]:
+        return
+
+    # Create an Array to store the point index
+    rand_idx = cuda.local.array(shape=(3,1),dtype=int32)
+    pts = cuda.local.array(shape=(3,3),dtype=float32)
+    for i in range(3):
+        rand_idx  = -1 #TODO: GET RANDOM NUMBER ON GPU
+        # Get the Points Corresponding to the random indexs
+        pts[i,0] = point_cloud[idx,0]
+        pts[i,1] = point_cloud[idx,1]
+        pts[i,3] = point_cloud[idx,2]
+
+    # Calculate the Constants for the given points
+
+    # $$ a = [(y_2 - y_1)(z_3 - z_1) - (z_2 - z_1)(y_3 - y_2)] $$
+    a = (pts[1,1]-pts[0,1])*(pts[2,2]-pts[0,2]) - (pts[1,2]-pts[0,2])*(pts[2,1]-pts[1,1])
+
+    # $$ b = [(z_2 - z_1)(x_3 - x_1) - (x_2 - x_1)(z_3 - z_2)] $$
+    b = (pts[1,2]-pts[0,2])*(pts[2,0]-pts[0,0]) - (pts[1,0]-pts[0,0])*(pts[2,2]-pts[1,2])
+
+    # $$ c = [(x_2 - x_1)(y_3 - y_1) - (y_2 - y_1)(x_3 - x_2)] $$
+    c = (pts[1,0]-pts[0,0])*(pts[2,1]-pts[0,1]) - (pts[1,1]-pts[0,1])*(pts[2,0]-pts[1,0])
+
+    # $$ d = -(a * x_n + b * y_n + c * z_n) $$
+    d = -(a*pts[0,0] + b*pts[0,1] + c*pts[0,2])
+
+    # $$ psq = sqrt{(a^2) + (b^2 + (c^2)} $$
+    psq = max(0.1,sqrt(a*a + b*b + c*c))
+
+    # Pass the Points back to the output array
+    plane_constants[stride+tx,0] = a
+    plane_constants[stride+tx,1] = b
+    plane_constants[stride+tx,2] = c
+    plane_constants[stride+tx,3] = d
+    plane_constants[stride+tx,4] = psq  
+
+    return None
+
+@cuda.jit
+def kernelRANSAC(x_train,y_train,x_eval,y_eval):
+    return None
 
 class RunRANSAC(object):
     """docstring forRunRANSAC."""
@@ -187,7 +252,7 @@ class RunRANSAC(object):
                 # Check whether or no the point is a good fit
                 if (dist <= self.dist_thresh):
                     # Add to the list if inlier points
-                    pts = np.vstack((pts,self.x_eval[j,:]))
+                    pts = np.vstack((pts,self.x_eval[j,:])) #TODO:DEBUG: THIS SHOULD BE A SEPARATE POINTS ARRAY
 
             # Check if the current inliers is better than the best so far
             if len(pts) > len(pts_best):
@@ -216,13 +281,12 @@ if __name__ == '__main__':
     ransac.selectCluster(ransac.x_train,ransac.y_train)
     ransac.saveData("pointcloud-ransac.pickle")
     print("CPU Pickle Save Time",code_timer.lap())
-    code_timer.lap()
 
     # Run the CPU Implementation
     _, plane_constants = ransac.cpu(debug=False)
     print("CPU Run Time:",code_timer.lap())
     print("CPU Plane Constants:",plane_constants)
-
+    code_timer.lap()
 
     # Run the GPU Implementation
     # knn.gpu()
