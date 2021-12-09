@@ -48,3 +48,4 @@ rng_states = create_xoroshiro128p_states(threads_per_block * blocks, seed=1)
 out = np.zeros(threads_per_block * blocks, dtype=np.float32)
 
 compute_pi[blocks, threads_per_block](rng_states, 10000, out)
+print(out)

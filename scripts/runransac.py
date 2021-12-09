@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import numpy as np
-from numba import cuda, float32, uint16, int32 # GPU Optimizations
+from numba import cuda, float32, float64, uint16, int32 # GPU Optimizations
 from numba.cuda.random import create_xoroshiro128p_states, xoroshiro128p_uniform_float32
 import math
 import copy
@@ -13,6 +13,9 @@ import libtimer as my_timer
 NUM_ITERATIONS = 100
 DISTANCE_THRESHOLD = 0.01#0.1
 THREADS_PER_BLOCK = 256
+# TODO::HACK::DEBUG: find a way to declare this within a class
+RNG_STATES = create_xoroshiro128p_states(THREADS_PER_BLOCK * 6, seed=1)
+
 
 """
 Kernel 1: Calculate Constants a,b,c,d from the point cloud
@@ -24,7 +27,7 @@ Kernel 2: Evaluate the fit for points a,b,c,d
 """
 
 @cuda.jit
-def kernelRANSAC_1(point_cloud,plane_constants):
+def kernelRANSAC_1(point_cloud,plane_constants,rng_states):
     """
     Calculates the constants a,b,c,d from the point_cloud that fit the plane
     equation: ax + by + cz + d = 0
@@ -35,18 +38,26 @@ def kernelRANSAC_1(point_cloud,plane_constants):
     stride = cuda.blockIdx.x*cuda.blockDim.x
 
     # Check Bounds
-    if stride + tx > point_cloud.shape[0]:
+    if stride + tx > NUM_ITERATIONS:
         return
 
     # Create an Array to store the point index
-    rand_idx = cuda.local.array(shape=(3,1),dtype=int32)
+    # rand_idx = cuda.local.array(shape=(3,1),dtype=int32)
     pts = cuda.local.array(shape=(3,3),dtype=float32)
     for i in range(3):
-        rand_idx  = -1 #TODO: GET RANDOM NUMBER ON GPU
+        # Get a random number between [0,1] as a float
+        rand_num = xoroshiro128p_uniform_float32(rng_states, tx)
+
+        # Convert the float to an int for indexing
+        # Map: new_val = (old_val-old_min)/(old_max-old_min) * (new_max-new_min) + new_min
+        # rand_idx = (rand_num)/(1-0)*(point_cloud.shape[0]) + 0
+        rand_idx = int(rand_num*point_cloud.shape[0])
+
+        # rand_idx  = 1 #TODO: GET RANDOM NUMBER ON GPU
         # Get the Points Corresponding to the random indexs
-        pts[i,0] = point_cloud[idx,0]
-        pts[i,1] = point_cloud[idx,1]
-        pts[i,3] = point_cloud[idx,2]
+        pts[i,0] = point_cloud[rand_idx,0]
+        pts[i,1] = point_cloud[rand_idx,1]
+        pts[i,2] = point_cloud[rand_idx,2]
 
     # Calculate the Constants for the given points
 
@@ -63,7 +74,7 @@ def kernelRANSAC_1(point_cloud,plane_constants):
     d = -(a*pts[0,0] + b*pts[0,1] + c*pts[0,2])
 
     # $$ psq = sqrt{(a^2) + (b^2 + (c^2)} $$
-    psq = max(0.1,sqrt(a*a + b*b + c*c))
+    psq = max(0.1,(a*a + b*b + c*c)**0.5)
 
     # Pass the Points back to the output array
     plane_constants[stride+tx,0] = a
@@ -160,7 +171,7 @@ class RunRANSAC(object):
 
         # Store Internally as the evaluation data
         self.x_eval = point_cloud_array[label_array==max_label]
-        self.y_eval = np.full(self.y_train.shape,max_label)
+        self.y_eval = np.full(self.x_eval.shape[0],max_label)
 
         # Return the max label
         return max_label
@@ -267,6 +278,49 @@ class RunRANSAC(object):
 
         return pts_best, constants_best
 
+    def gpu(self,x_eval=None,y_eval=None,debug=True):
+        print("Running GPU Version")
+
+        # Assign the Local Data (If applicable)
+        if x_eval is not None: self.x_eval = x_eval
+        if y_eval is not None: self.y_eval = y_eval
+        if debug: print("X_eval Shape",self.x_eval.shape)
+        if debug: print("Y_eval Shape",self.y_eval.shape)
+
+        # Explicitly Create Numbas Types for the DEVICE
+        plane_constants = np.zeros((self.num_iters,5))
+        d_plane_constants = cuda.to_device(plane_constants)
+        d_x_eval = cuda.to_device(self.x_eval)#,dtype=float32)
+        d_y_eval = cuda.to_device(self.y_eval)#,dtype=int32)
+
+
+
+        # Set up the Kernel
+        # threadsperblock = (int(np.sqrt(self.tpb)), int(np.sqrt(self.tpb)))
+        threadsperblock = (self.tpb, 1)
+        print("Threads Per Block",threadsperblock)
+        blockspergrid_x = math.ceil(self.x_train.shape[0] / threadsperblock[0])
+        blockspergrid_y = 1
+        # blockspergrid_y = math.ceil(self.x_train.shape[1] / threadsperblock[1])
+        blockspergrid = (blockspergrid_x, blockspergrid_y)
+        print("Blocks Per Grid",blockspergrid)
+
+        # Seed the Random Number Generator for the Kernel
+        # rng_states = create_xoroshiro128p_states(threadsperblock * blockspergrid_x, seed=1)
+        # rng_states=1
+        # if debug: print(rng_states)
+
+        # Launch the Kernels
+        print("Launching GPU Kernels")
+        kernelRANSAC_1[blockspergrid,threadsperblock](d_x_eval,d_plane_constants,RNG_STATES)
+
+        # Copy back to the host
+        plane_constants = d_plane_constants.copy_to_host()
+
+        if debug:
+            # Write Labels to CSV File for Analysis
+            self.io.saveCSV(plane_constants,"ransac-plane_constants.csv")
+
 
 if __name__ == '__main__':
     # Intialize the KNN Classifier
@@ -295,8 +349,8 @@ if __name__ == '__main__':
     code_timer.lap()
 
     # Run the GPU Implementation
-    # knn.gpu()
-    # print("GPU Run Time:",code_timer.lap())
+    ransac.gpu()
+    print("GPU Run Time:",code_timer.lap())
     # knn.saveData("pointcloud-gpu.pickle")
     # print("GPU Pickle Save Time",code_timer.lap())
 
