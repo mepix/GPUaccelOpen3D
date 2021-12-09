@@ -90,7 +90,7 @@ def kernelRANSAC_2(point_cloud,plane_constants,dist_thresh,count_constants):
     tx = cuda.threadIdx.x
     ty = cuda.threadIdx.y
     stride_x = cuda.blockIdx.x*cuda.blockDim.x
-    stride_y = cuda.blockIdx.x*cuda.blockDim.y
+    stride_y = cuda.blockIdx.y*cuda.blockDim.y
 
     # Check Boundaries
     if stride_x + tx > NUM_ITERATIONS:
@@ -104,7 +104,7 @@ def kernelRANSAC_2(point_cloud,plane_constants,dist_thresh,count_constants):
     psq = plane_constants[stride_x+tx,4]
 
     # Evaluate the Performance of the Fit
-    pts_inliers = None
+    # pts_inliers = None
     if stride_y + ty >= point_cloud.shape[0]:
         return
 
@@ -323,7 +323,7 @@ class RunRANSAC(object):
 
         return pts_best, constants_best
 
-    def gpu(self,x_eval=None,y_eval=None,debug=True):
+    def gpu(self,x_eval=None,y_eval=None,do_time_gpu=True,debug=True):
         print("Running GPU Version")
 
         # Assign the Local Data (If applicable)
@@ -332,9 +332,14 @@ class RunRANSAC(object):
         if debug: print("X_eval Shape",self.x_eval.shape)
         if debug: print("Y_eval Shape",self.y_eval.shape)
 
+        if do_time_gpu:
+            gpu_timer = my_timer.MyTimer()
+            gpu_timer.start()
+
+
         # Explicitly Create Numbas Types for the DEVICE
         plane_constants = np.zeros((self.num_iters,5))
-        count_constants = np.zeros((self.num_iters,self.x_eval.shape[0]))
+        count_constants = np.zeros((self.num_iters,1))
         d_plane_constants = cuda.to_device(plane_constants)
         d_count_constants = cuda.to_device(count_constants)
         d_x_eval = cuda.to_device(self.x_eval)#,dtype=float32)
@@ -353,6 +358,7 @@ class RunRANSAC(object):
         # rng_states = create_xoroshiro128p_states(threadsperblock * blockspergrid_x, seed=1)
         # rng_states=1
         # if debug: print(rng_states)
+        if do_time_gpu: print("GPU Setup Time:",gpu_timer.lap())
 
         # Launch the Kernel 1
         print("Launching GPU Kernel 1")
@@ -374,10 +380,19 @@ class RunRANSAC(object):
         plane_constants = d_plane_constants.copy_to_host()
         count_constants = d_count_constants.copy_to_host()
 
+        # Determine the best constants
+        if debug: print(np.argmax(count_constants[:,0]))
+        constants_best = plane_constants[np.argmax(count_constants[:,0]),0:-1]
+
+        if do_time_gpu: print("GPU Runtime Time:",gpu_timer.lap())
+
+
         if debug:
             # Write Labels to CSV File for Analysis
             self.io.saveCSV(plane_constants,"ransac-plane_constants.csv")
             self.io.saveCSV(count_constants,"ransac-count_constants.csv")
+
+        return constants_best
 
 
 if __name__ == '__main__':
@@ -407,11 +422,11 @@ if __name__ == '__main__':
     code_timer.lap()
 
     # Run the GPU Implementation
-    ransac.gpu()
+    plane_constants = ransac.gpu(debug=False)
     print("GPU Run Time:",code_timer.lap())
-    # knn.saveData("pointcloud-gpu.pickle")
-    # print("GPU Pickle Save Time",code_timer.lap())
+    print("GPU Plane Constants:",plane_constants)
 
+    # Consider Total Run Time
     print("Total Run Time:",code_timer.ellapsed())
 
     try:
