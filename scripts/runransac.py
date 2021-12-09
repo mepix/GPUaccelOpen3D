@@ -11,7 +11,7 @@ import libfileio as my_io
 import libtimer as my_timer
 
 NUM_ITERATIONS = 100
-DISTANCE_THRESHOLD = 1#0.1
+DISTANCE_THRESHOLD = 0.01#0.1
 THREADS_PER_BLOCK = 256
 
 """
@@ -70,7 +70,7 @@ def kernelRANSAC_1(point_cloud,plane_constants):
     plane_constants[stride+tx,1] = b
     plane_constants[stride+tx,2] = c
     plane_constants[stride+tx,3] = d
-    plane_constants[stride+tx,4] = psq  
+    plane_constants[stride+tx,4] = psq
 
     return None
 
@@ -241,18 +241,24 @@ class RunRANSAC(object):
             if debug: print(a,b,c,d)
 
             # Evaluate the Performance of the Fit
+            pts_inliers = None
             for j in range(self.x_eval.shape[0]):
+                if debug: print(j,self.x_eval.shape[0])
                 # We do not want to compare with points used to calc a,b,c,d
                 # if j in pts_idx: continue
 
                 # Calc distance between point and plane
                 if debug: print(j)
-                dist = math.fabs(a*pts[j,0] + b*pts[j,1] + c*pts[j,2] + d)/psq
+                dist = math.fabs(a*self.x_eval[j,0] + b*self.x_eval[j,1] + c*self.x_eval[j,2] + d)/psq
 
                 # Check whether or no the point is a good fit
                 if (dist <= self.dist_thresh):
                     # Add to the list if inlier points
-                    pts = np.vstack((pts,self.x_eval[j,:])) #TODO:DEBUG: THIS SHOULD BE A SEPARATE POINTS ARRAY
+                    if pts_inliers is None:
+                        pts_inliers = self.x_eval[j,:]
+                    else:
+                        pts_inliers = np.vstack((pts_inliers,self.x_eval[j,:]))
+                    # pts = np.vstack((pts,self.x_eval[j,:])) #TODO:DEBUG: THIS SHOULD BE A SEPARATE POINTS ARRAY
 
             # Check if the current inliers is better than the best so far
             if len(pts) > len(pts_best):
