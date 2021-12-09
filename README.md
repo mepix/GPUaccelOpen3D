@@ -14,11 +14,18 @@ Automated clustering is best performed with a DBSCAN algorithm. For the purposes
 
 ## References
 
-- [Point Cloud Library Documentation](http://www.open3d.org/docs/release/index.html)
+### Numba Documentation
+
 - [Numba Documentation](https://numba.readthedocs.io/en/stable/cuda/examples.html#matrix-multiplication)
+- [Numba Supported NumPy Features](https://numba.pydata.org/numba-doc/latest/reference/numpysupported.html)
+- [Numba Supported CUDA Features](https://numba.readthedocs.io/en/stable/cuda/cudapysupported.html#numpy-support)
+- [Numba CUDA Atomic Operations](https://numba.pydata.org/numba-doc/latest/cuda/intrinsics.html)
+- [Numba CUDA Random Number Generators](https://numba.readthedocs.io/en/stable/cuda/random.html#a-simple-example)
+
+### General
+
+- [Point Cloud Library Documentation](http://www.open3d.org/docs/release/index.html)
 - [Wikipedia: KNN Algorithm](https://en.wikipedia.org/wiki/K-nearest_neighbors_algorithm)
 - [Wikipedia: DBSCAN Algorithm](https://en.wikipedia.org/wiki/DBSCAN)
 - [Nvidia: 7 Things to know about Numba](https://developer.nvidia.com/blog/seven-things-numba/)
-- [Numba Supported NumPy Features](https://numba.pydata.org/numba-doc/latest/reference/numpysupported.html)
-- [Numba Supported CUDA Features](https://numba.readthedocs.io/en/stable/cuda/cudapysupported.html#numpy-support)
 - [Including Code Blocks in LaTeX](https://www.overleaf.com/learn/latex/Code_listing)

@@ -26,7 +26,7 @@ K_NEAREST = 5
 @cuda.jit
 def kernelKNN(x_train,y_train,x_eval,y_eval):
     """
-    This is a rather naive implementation of a KNN Kernel:
+    This is a rather naive implementation of a KNN Alogrithm:
     -> Each thread should correspond to a point in the x_eval point cloud
     -> Each thread calculates the distance between it's x_eval and all points
        in x_train

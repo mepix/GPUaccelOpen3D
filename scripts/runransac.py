@@ -46,7 +46,6 @@ def kernelRANSAC_1(point_cloud,plane_constants,rng_states):
         # rand_idx = (rand_num)/(1-0)*(point_cloud.shape[0]) + 0
         rand_idx = int(rand_num*point_cloud.shape[0])
 
-        # rand_idx  = 1 #TODO: GET RANDOM NUMBER ON GPU
         # Get the Points Corresponding to the random indexs
         pts[i,0] = point_cloud[rand_idx,0]
         pts[i,1] = point_cloud[rand_idx,1]
@@ -125,12 +124,11 @@ def kernelRANSAC_2(point_cloud,plane_constants,dist_thresh,count_constants):
 
     return None
 
-@cuda.jit
-def kernelRANSAC(x_train,y_train,x_eval,y_eval):
-    return None
-
 class RunRANSAC(object):
-    """docstring forRunRANSAC."""
+    """
+    This is an implementation of the RANSAD plane fitting algorithm for the CPU
+    and the GPU.
+    """
 
     def __init__(self,num_iterations,distance_thresh,path_to_data="../data/",threads_per_block=256):
         # super(RunRANSAC, self).__init__()
