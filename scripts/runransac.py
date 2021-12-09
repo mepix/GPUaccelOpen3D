@@ -16,19 +16,12 @@ THREADS_PER_BLOCK = 256
 # TODO::HACK::DEBUG: find a way to declare this within a class
 RNG_STATES = create_xoroshiro128p_states(THREADS_PER_BLOCK * 6, seed=1)
 
-
-"""
-Kernel 1: Calculate Constants a,b,c,d from the point cloud
-    IN: [full_point_cloud]
-    OUT: [a,b,c,d]
-Kernel 2: Evaluate the fit for points a,b,c,d
-    IN: [point cloud], [a,b,c,d]
-    OUT: [inlier_points]
-"""
-
 @cuda.jit
 def kernelRANSAC_1(point_cloud,plane_constants,rng_states):
     """
+    Kernel 1: Calculate Constants a,b,c,d from the point cloud
+        IN: [full_point_cloud]
+        OUT: [a,b,c,d]
     Calculates the constants a,b,c,d from the point_cloud that fit the plane
     equation: ax + by + cz + d = 0
     """
@@ -38,7 +31,7 @@ def kernelRANSAC_1(point_cloud,plane_constants,rng_states):
     stride = cuda.blockIdx.x*cuda.blockDim.x
 
     # Check Bounds
-    if stride + tx > NUM_ITERATIONS:
+    if stride + tx >= NUM_ITERATIONS:
         return
 
     # Create an Array to store the point index
@@ -82,6 +75,58 @@ def kernelRANSAC_1(point_cloud,plane_constants,rng_states):
     plane_constants[stride+tx,2] = c
     plane_constants[stride+tx,3] = d
     plane_constants[stride+tx,4] = psq
+
+    return None
+
+@cuda.jit
+def kernelRANSAC_2(point_cloud,plane_constants,dist_thresh,count_constants):
+    """
+    Kernel 2: Evaluate the fit for points a,b,c,d
+        IN: [point cloud], [a,b,c,d]
+        OUT: [inlier_points]
+    """
+
+    # Get the current thread ID
+    tx = cuda.threadIdx.x
+    ty = cuda.threadIdx.y
+    stride_x = cuda.blockIdx.x*cuda.blockDim.x
+    stride_y = cuda.blockIdx.x*cuda.blockDim.y
+
+    # Check Boundaries
+    if stride_x + tx > NUM_ITERATIONS:
+        return
+
+    # Get the plane_constants
+    a = plane_constants[stride_x+tx,0]
+    b = plane_constants[stride_x+tx,1]
+    c = plane_constants[stride_x+tx,2]
+    d = plane_constants[stride_x+tx,3]
+    psq = plane_constants[stride_x+tx,4]
+
+    # Evaluate the Performance of the Fit
+    pts_inliers = None
+    if stride_y + ty >= point_cloud.shape[0]:
+        return
+
+    # Calc distance between point and plane
+    dist = math.fabs(a*point_cloud[stride_y+ty,0] + b*point_cloud[stride_y+ty,1] + c*point_cloud[stride_y+ty,2] + d)/psq
+
+    # Check whether or no the point is a good fit
+    if (dist <= dist_thresh):
+        # Increment the counter for this group of constants
+        cuda.atomic.add(count_constants,(stride_x+tx,0),1)
+        #     # Add to the list if inlier points
+        #     if pts_inliers is None:
+        #         pts_inliers = self.x_eval[j,:]
+        #     else:
+        #         pts_inliers = np.vstack((pts_inliers,self.x_eval[j,:]))
+        #         # pts = np.vstack((pts,self.x_eval[j,:])) #TODO:DEBUG: THIS SHOULD BE A SEPARATE POINTS ARRAY
+        #
+        # # Check if the current inliers is better than the best so far
+        # if len(pts) > len(pts_best):
+        #     pts_best = pts
+        #     constants_best = np.array([a,b,c,d])
+
 
     return None
 
@@ -289,19 +334,18 @@ class RunRANSAC(object):
 
         # Explicitly Create Numbas Types for the DEVICE
         plane_constants = np.zeros((self.num_iters,5))
+        count_constants = np.zeros((self.num_iters,self.x_eval.shape[0]))
         d_plane_constants = cuda.to_device(plane_constants)
+        d_count_constants = cuda.to_device(count_constants)
         d_x_eval = cuda.to_device(self.x_eval)#,dtype=float32)
         d_y_eval = cuda.to_device(self.y_eval)#,dtype=int32)
-
-
 
         # Set up the Kernel
         # threadsperblock = (int(np.sqrt(self.tpb)), int(np.sqrt(self.tpb)))
         threadsperblock = (self.tpb, 1)
         print("Threads Per Block",threadsperblock)
-        blockspergrid_x = math.ceil(self.x_train.shape[0] / threadsperblock[0])
+        blockspergrid_x = math.ceil(self.num_iters / threadsperblock[0])
         blockspergrid_y = 1
-        # blockspergrid_y = math.ceil(self.x_train.shape[1] / threadsperblock[1])
         blockspergrid = (blockspergrid_x, blockspergrid_y)
         print("Blocks Per Grid",blockspergrid)
 
@@ -310,16 +354,30 @@ class RunRANSAC(object):
         # rng_states=1
         # if debug: print(rng_states)
 
-        # Launch the Kernels
-        print("Launching GPU Kernels")
+        # Launch the Kernel 1
+        print("Launching GPU Kernel 1")
         kernelRANSAC_1[blockspergrid,threadsperblock](d_x_eval,d_plane_constants,RNG_STATES)
+
+        # Set up Kernel 2
+        threadsperblock = (int(np.sqrt(self.tpb)), int(np.sqrt(self.tpb)))
+        print("Threads Per Block",threadsperblock)
+        blockspergrid_y = math.ceil(self.x_train.shape[0] / threadsperblock[1])
+        # blockspergrid_y = math.ceil(self.x_train.shape[1] / threadsperblock[1])
+        blockspergrid = (blockspergrid_x, blockspergrid_y)
+        print("Blocks Per Grid",blockspergrid)
+
+        # Launch the Kernel 2
+        print("Launching GPU Kernel 2")
+        kernelRANSAC_2[blockspergrid,threadsperblock](d_x_eval,d_plane_constants,self.dist_thresh,d_count_constants)
 
         # Copy back to the host
         plane_constants = d_plane_constants.copy_to_host()
+        count_constants = d_count_constants.copy_to_host()
 
         if debug:
             # Write Labels to CSV File for Analysis
             self.io.saveCSV(plane_constants,"ransac-plane_constants.csv")
+            self.io.saveCSV(count_constants,"ransac-count_constants.csv")
 
 
 if __name__ == '__main__':
