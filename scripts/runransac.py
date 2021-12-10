@@ -109,18 +109,6 @@ def kernelRANSAC_2(point_cloud,plane_constants,dist_thresh,count_constants):
     if (dist <= dist_thresh):
         # Increment the counter for this group of constants
         cuda.atomic.add(count_constants,(stride_x+tx,0),1)
-        #     # Add to the list if inlier points
-        #     if pts_inliers is None:
-        #         pts_inliers = self.x_eval[j,:]
-        #     else:
-        #         pts_inliers = np.vstack((pts_inliers,self.x_eval[j,:]))
-        #         # pts = np.vstack((pts,self.x_eval[j,:])) #TODO:DEBUG: THIS SHOULD BE A SEPARATE POINTS ARRAY
-        #
-        # # Check if the current inliers is better than the best so far
-        # if len(pts) > len(pts_best):
-        #     pts_best = pts
-        #     constants_best = np.array([a,b,c,d])
-
 
     return None
 
@@ -307,7 +295,6 @@ class RunRANSAC(object):
                         pts_inliers = self.x_eval[j,:]
                     else:
                         pts_inliers = np.vstack((pts_inliers,self.x_eval[j,:]))
-                    # pts = np.vstack((pts,self.x_eval[j,:])) #TODO:DEBUG: THIS SHOULD BE A SEPARATE POINTS ARRAY
 
             # Check if the current inliers is better than the best so far
             if len(pts) > len(pts_best):
