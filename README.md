@@ -1,14 +1,31 @@
 # GPUaccelOpen3D
 
-This repository uses CUDA to accelerate Point Cloud Operations.
+This repository uses Numba CUDA to accelerate algorithms for point clouds generated via Open3D.
 
-## Random Thoughts
+## Script Folder Structure
+
+The project requires both Open3D and Numba for full operation. However, the project is structured such that the point cloud visualization is separate from the GPU code to simplify dependencies. The software is split into the following python scripts:
+
+- `libopen3d`: custom wrapper class around the Open3D library to open point cloud and extract the data as a NumPy array.
+- `libfileio`: simple wrapper class to help with generating pickle and CSV files.
+- `libtimer`: simple wrapper class to help with timing algorithm performance
+- `runpointcloud`: a multipurpose tool for converting point clouds to pickled NumPy arrays and visualizing the point cloud data. As part of this process, Open3D's DBSCAN algorithm is used to label the points in the point cloud for the KNN classifier. This tool requires Open3D, but not Numba.
+- `runknn`: a class that implements the KNN algorithm on the CPU and GPU. Run this file to time processing. This tool requires Numba, but not Open3D.
+- `runransac`: a class that implements the RANSAC algorithm on the CPU and GPU. Run this file to time processing. This tool requires Numba, but not Open3D.
+
+## Implemented Algorithms
 
 ### K-Nearest Neighbors (KNN)
 
-Automated clustering is best performed with a DBSCAN algorithm. For the purposes of this project, I will consider two point clouds. The first point cloud will be labeled with the DBSCAN algorithm. The second point cloud will contain the same scene, from a different angle and will be unlabeled. The KNN algorithm will then label each new point.
+The KNN algorithm provides a label $Y$ to an unlabelled feature vector $X$ by considering $X$'s relation to its $K$-nearest neighbors. This implementation uses the Euclidean distance between neighbors and an unweighted voting scheme to assign the label.
+
+This project considers two point clouds. The first point cloud will be labeled with the DBSCAN algorithm. The second point cloud will contain the same scene, from a different angle and will be unlabeled. The KNN algorithm will then label each new point.
+
+![KNN Labels](./img/ClusterLabelling.png)
 
 ### RANSAC
+
+The RANSAC algorithm fits a set of a points to a plane by randomly selecting 3 points from a point cloud and fitting them to a plane defined by $ax + by + cz + d = 0$. The remaining points are then evaluated to determine how many of those points are within a user-defined distance threshold. This process is repeated for $N$ iterations. The set of plane constants $\{a,b,c,d\}$ that encompass the most points is selected as the definition of the plane.
 
 ## References
 
