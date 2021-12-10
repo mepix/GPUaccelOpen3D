@@ -4,7 +4,7 @@ This repository uses Numba CUDA to accelerate algorithms for point clouds genera
 
 ## Script Folder Structure
 
-The project requires both Open3D and Numba for full operation. However, the project is structured such that the point cloud visualization is separate from the GPU code to simplify dependencies. The software is split into the following python scripts:
+The project requires both [Open3D](http://www.open3d.org) and [Numba](https://numba.pydata.org) for full operation. However, the project is structured such that the point cloud visualization is separate from the GPU code to simplify dependencies. The software is split into the following python scripts:
 
 - `libopen3d`: custom wrapper class around the Open3D library to open point cloud and extract the data as a NumPy array.
 - `libfileio`: simple wrapper class to help with generating pickle and CSV files.
