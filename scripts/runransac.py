@@ -304,6 +304,13 @@ class RunRANSAC(object):
         return pts_best, constants_best
 
     def gpu(self,x_eval=None,y_eval=None,do_time_gpu=True,debug=True):
+        """
+        This function implements the GPU version of the RANSAC plane fitting
+        algorithm. This routine calls two separate CUDA kernels. The first
+        kernel generates a matrix of constants corresponding to the plane. The
+        second kernel then determine which set of points generates the optimal
+        fit for the point cloud.
+        """
         print("Running GPU Version")
 
         # Assign the Local Data (If applicable)
