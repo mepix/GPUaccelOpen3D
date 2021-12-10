@@ -32,10 +32,6 @@ def kernelKNN(x_train,y_train,x_eval,y_eval):
        in x_train
     """
 
-    # Load the training point cloud into shared memory
-    x_train_shared = cuda.shared.array(shape=(MAX_POINTS,NUM_FEATURES), dtype=float32)
-    # x_eval_shared = cuda.shared.array(shape=(TPB, TPB), dtype=float32)
-
     x, y = cuda.grid(2)
 
     tx = cuda.threadIdx.x
@@ -47,6 +43,16 @@ def kernelKNN(x_train,y_train,x_eval,y_eval):
     # Check Boundaries
     if stride + tx > x_eval.shape[0]:
         return
+
+    # Load the training point cloud into shared memory
+    x_train_shared = cuda.shared.array(shape=(MAX_POINTS,NUM_FEATURES), dtype=float32)
+    x_eval_shared = cuda.shared.array(shape=(MAX_POINTS,NUM_FEATURES), dtype=float32)
+
+    for j in range(NUM_FEATURES):
+        x_train_shared[stride+tx,j] = x_train[stride+tx,j]
+    # Wait until all threads finish preloading
+    cuda.syncthreads()
+
 
     # Load x_train into shared memory
     # for i in range(MAX_POINTS):
@@ -64,7 +70,7 @@ def kernelKNN(x_train,y_train,x_eval,y_eval):
         # Iterate over the feautures
         for n in range(NUM_FEATURES):
             # Determine the delta between the eval and training features
-            delta = x_eval[stride+tx,n] - x_train[j,n]
+            delta = x_eval[stride+tx,n] - x_train_shared[j,n]
             # Increment the sum by the square of the features
             sum += delta**2
 
