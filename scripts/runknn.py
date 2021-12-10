@@ -32,12 +32,8 @@ def kernelKNN(x_train,y_train,x_eval,y_eval):
        in x_train
     """
 
-    x, y = cuda.grid(2)
-
+    # Get the Thread ID and Stride
     tx = cuda.threadIdx.x
-    ty = cuda.threadIdx.y
-    bpg = cuda.gridDim.x    # blocks per grid
-
     stride = cuda.blockIdx.x *cuda.blockDim.x
 
     # Check Boundaries
@@ -46,19 +42,11 @@ def kernelKNN(x_train,y_train,x_eval,y_eval):
 
     # Load the training point cloud into shared memory
     x_train_shared = cuda.shared.array(shape=(MAX_POINTS,NUM_FEATURES), dtype=float32)
-    x_eval_shared = cuda.shared.array(shape=(MAX_POINTS,NUM_FEATURES), dtype=float32)
 
     for j in range(NUM_FEATURES):
         x_train_shared[stride+tx,j] = x_train[stride+tx,j]
     # Wait until all threads finish preloading
     cuda.syncthreads()
-
-
-    # Load x_train into shared memory
-    # for i in range(MAX_POINTS):
-    #     x_train_shared[i,:] = 1 #TODO: used shared memory
-    # for i in range(int(x_train.shape[1]/TPB)):
-    #     x_train_shared[tx,ty] = x_train[x, ty + i * TPB]
 
     # Create an array to store the distances for this block
     distances = cuda.local.array(shape=(MAX_POINTS,1), dtype=float32)
@@ -294,19 +282,16 @@ class RunKNN(object):
         d_y_eval = cuda.to_device(self.y_eval)#,dtype=int32)
 
         # Set up the Kernel
-        # threadsperblock = (int(np.sqrt(self.tpb)), int(np.sqrt(self.tpb)))
         threadsperblock = (self.tpb, 1)
         print("Threads Per Block",threadsperblock)
         blockspergrid_x = math.ceil(self.x_train.shape[0] / threadsperblock[0])
         blockspergrid_y = 1
-        # blockspergrid_y = math.ceil(self.x_train.shape[1] / threadsperblock[1])
         blockspergrid = (blockspergrid_x, blockspergrid_y)
         print("Blocks Per Grid",blockspergrid)
 
         # Launch the Kernel
         print("Launching GPU Kernel")
         kernelKNN[blockspergrid,threadsperblock](d_x_train,d_y_train,d_x_eval,d_y_eval)
-        # kernelKNN[blockspergrid,threadsperblock](self.x_train,self.y_train,self.x_eval,self.y_eval)
 
         # Copy back to the host
         self.y_eval = d_y_eval.copy_to_host()
@@ -317,7 +302,7 @@ class RunKNN(object):
 
             print(y_train_copy)
             print(self.y_train)
-            print(d_y_train.copy_to_host()) # OH NO, this is getting changed!
+            print(d_y_train.copy_to_host())
 
     def gpu_test(self):
         print("Running GPU Test")
